@@ -1,0 +1,204 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>微笺屏 WeClawBot 本地控制台</title>
+    <link rel="stylesheet" href="./style.css">
+    <script type="module" src="https://unpkg.com/esp-web-tools@10/dist/web/install-button.js?module"></script>
+    <script defer src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+    <script defer src="./app.js?v=0.1.36"></script>
+  </head>
+  <body>
+    <header class="topbar">
+      <div>
+        <p class="eyebrow">Waveshare ESP32-S3-RLCD-4.2</p>
+        <h1>微笺屏 WeClawBot 本地控制台</h1>
+      </div>
+      <div class="top-actions">
+        <span class="build-badge">固件 0.1.36</span>
+        <span class="build-badge">ESP32-S3</span>
+      </div>
+    </header>
+
+    <main class="workspace">
+      <section class="panel install-panel" aria-labelledby="install-title">
+        <div class="panel-heading">
+          <div>
+            <p class="section-kicker">Install</p>
+            <h2 id="install-title">刷写固件</h2>
+          </div>
+          <span class="state-pill">本地产物</span>
+        </div>
+
+        <div class="firmware-row">
+          <div>
+            <span class="label">目标板</span>
+            <strong>ESP32-S3-RLCD-4.2</strong>
+          </div>
+          <div>
+            <span class="label">Flash</span>
+            <strong>16MB, DIO, 80MHz</strong>
+          </div>
+          <div>
+            <span class="label">镜像</span>
+            <strong>分段写入，保留配置</strong>
+          </div>
+        </div>
+
+        <esp-web-install-button manifest="./manifest.json">
+          <button class="button primary install-button" slot="activate" type="button">
+            <i data-lucide="download"></i>
+            <span>刷写微笺屏固件</span>
+          </button>
+          <p class="browser-warning" slot="unsupported">当前浏览器不能打开串口，请用桌面版 Chrome 或 Edge。</p>
+          <p class="browser-warning" slot="not-allowed">请通过 localhost 或 HTTPS 打开本页面。</p>
+        </esp-web-install-button>
+
+        <ol class="steps">
+          <li>刷写时按住 BOOT 插入 Type-C，端口出现后松开 BOOT。</li>
+          <li>刷完后拔掉 Type-C，不按 BOOT 重新插入，进入正常启动。</li>
+          <li>屏幕亮起后，在右侧连接设备并写入 Wi-Fi。</li>
+        </ol>
+      </section>
+
+      <section class="panel config-panel" aria-labelledby="config-title">
+        <div class="panel-heading">
+          <div>
+            <p class="section-kicker">Configure</p>
+            <h2 id="config-title">设备配置</h2>
+          </div>
+          <span class="state-pill" id="serial-state">未连接</span>
+        </div>
+
+        <div class="button-row">
+          <button class="button primary" id="connect-button" type="button">
+            <i data-lucide="usb"></i>
+            <span>连接设备</span>
+          </button>
+          <button class="button" id="disconnect-button" type="button" disabled>
+            <i data-lucide="unplug"></i>
+            <span>断开</span>
+          </button>
+          <button class="icon-button" id="refresh-button" type="button" title="刷新状态" disabled>
+            <i data-lucide="refresh-cw"></i>
+          </button>
+        </div>
+        <p class="serial-help" id="serial-help">
+          首次连接会弹出系统串口选择器，请选择 ESP32-S3 对应端口。
+        </p>
+
+        <div class="status-grid">
+          <div>
+            <span class="label">设备</span>
+            <strong id="device-name">-</strong>
+          </div>
+          <div>
+            <span class="label">Wi-Fi</span>
+            <strong id="wifi-state">-</strong>
+          </div>
+          <div>
+            <span class="label">IP</span>
+            <strong id="ip-address">-</strong>
+          </div>
+          <div>
+            <span class="label">云端</span>
+            <strong id="curator-state">-</strong>
+          </div>
+          <div>
+            <span class="label">微信</span>
+            <strong id="wechat-state">-</strong>
+          </div>
+          <div>
+            <span class="label">当前微笺</span>
+            <strong id="note-state">-</strong>
+          </div>
+          <div>
+            <span class="label">版本</span>
+            <strong id="firmware-version">-</strong>
+          </div>
+        </div>
+
+        <form class="wifi-form" id="wifi-form">
+          <label>
+            <span>Wi-Fi 名称</span>
+            <input id="ssid-input" name="ssid" autocomplete="off" maxlength="32" placeholder="SSID">
+          </label>
+          <label>
+            <span>Wi-Fi 密码</span>
+            <span class="password-field">
+              <input id="password-input" name="password" type="password" autocomplete="current-password" maxlength="63" placeholder="Password">
+              <button class="password-toggle" id="password-toggle" type="button" title="显示密码" aria-label="显示密码" aria-pressed="false">
+                <i data-lucide="eye"></i>
+              </button>
+            </span>
+          </label>
+          <label>
+            <span>云端整理 URL</span>
+            <input id="curator-url-input" name="curator_url" autocomplete="off" maxlength="240" placeholder="https://...">
+          </label>
+          <label>
+            <span>AI Provider</span>
+            <select id="ai-provider-select" name="ai_provider">
+              <option value="weclawbot">WeClawBot 托管</option>
+              <option value="deepseek">DeepSeek</option>
+              <option value="modelscope">ModelScope / Qwen</option>
+              <option value="openai">OpenAI-compatible</option>
+              <option value="custom">Custom</option>
+            </select>
+          </label>
+          <label>
+            <span>API key / access token</span>
+            <span class="password-field">
+              <input id="ai-token-input" name="ai_token" type="password" autocomplete="off" maxlength="240" placeholder="托管模式可留空，第三方 provider 填自己的 token">
+              <button class="password-toggle" id="ai-token-toggle" type="button" title="显示 token" aria-label="显示 token" aria-pressed="false">
+                <i data-lucide="eye"></i>
+              </button>
+            </span>
+          </label>
+          <label>
+            <span>Provider Endpoint</span>
+            <input id="ai-endpoint-input" name="ai_endpoint" autocomplete="off" maxlength="200" placeholder="可留空使用 provider 默认 endpoint">
+          </label>
+          <label>
+            <span>模型</span>
+            <input id="ai-model-input" name="ai_model" autocomplete="off" maxlength="80" placeholder="可留空使用云端默认模型">
+          </label>
+          <div class="button-row">
+            <button class="button primary" id="save-wifi-button" type="submit" disabled>
+              <i data-lucide="save"></i>
+              <span>保存配置</span>
+            </button>
+            <button class="button" id="reboot-button" type="button" disabled>
+              <i data-lucide="rotate-cw"></i>
+              <span>重启设备</span>
+            </button>
+          </div>
+        </form>
+
+        <div class="maintenance-row">
+          <button class="button danger" id="clear-wifi-button" type="button" disabled>
+            <i data-lucide="wifi-off"></i>
+            <span>清 Wi-Fi</span>
+          </button>
+          <button class="button danger" id="clear-wechat-button" type="button" disabled>
+            <i data-lucide="log-out"></i>
+            <span>清微信</span>
+          </button>
+          <button class="button danger" id="clear-notes-button" type="button" disabled>
+            <i data-lucide="trash-2"></i>
+            <span>清微笺</span>
+          </button>
+        </div>
+
+        <div class="console-wrap">
+          <div class="console-heading">
+            <span>串口输出</span>
+            <button class="text-button" id="clear-console-button" type="button">清空</button>
+          </div>
+          <pre id="console-output" aria-live="polite"></pre>
+        </div>
+      </section>
+    </main>
+  </body>
+</html>

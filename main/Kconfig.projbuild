@@ -1,0 +1,68 @@
+menu "WeClawBot"
+
+config WEC_WIFI_SSID
+    string "Wi-Fi SSID"
+    default ""
+    help
+        Wi-Fi SSID for the bot. Use menuconfig or sdkconfig.defaults.local.
+
+config WEC_WIFI_PASSWORD
+    string "Wi-Fi password"
+    default ""
+    help
+        Wi-Fi password for the bot.
+
+config WEC_WECHAT_BASE_URL
+    string "WeChat ilink base URL"
+    default "https://ilinkai.weixin.qq.com"
+
+config WEC_CURATOR_URL
+    string "WeClawBot curator HTTP URL"
+    default "https://weclawbot.link/api/curator"
+    help
+        Optional HTTP endpoint for the Curator Skill Runtime. When empty, text
+        messages are stored locally without cloud curation.
+
+config WEC_POLL_INTERVAL_MS
+    int "WeChat getupdates poll interval"
+    default 800
+    range 300 10000
+
+config WEC_MAX_NOTES
+    int "Maximum local sticky notes"
+    default 12
+    range 1 30
+
+config WEC_MAX_NOTE_BYTES
+    int "Maximum UTF-8 bytes per sticky note"
+    default 720
+    range 120 3000
+
+config WEC_SCREENSAVER_IDLE_SEC
+    int "Idle seconds before screensaver"
+    default 600
+    range 30 86400
+
+config WEC_SCREENSAVER_RETURN_SEC
+    int "Seconds to show screensaver before returning to notes"
+    default 20
+    range 5 300
+
+config WEC_AUTO_PAGE_SEC
+    int "Seconds between automatic note page turns"
+    default 12
+    range 10 3600
+    help
+        When the current sticky note has multiple pages, the firmware advances
+        to the next page automatically. Manual buttons remain available as
+        emergency controls but should not be part of normal use.
+
+config WEC_PLATFORM_HINT
+    string "Platform service hint for non-text messages"
+    default "文档、图片和其他文件需要开通 WeClawBot 平台服务"
+
+config WEC_REPLY_ON_TEXT
+    bool "Reply to WeChat when a text note is posted"
+    default n
+
+endmenu

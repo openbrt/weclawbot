@@ -1,0 +1,154 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>WeClawBot</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --ink: #18201d;
+      --muted: #5f6b66;
+      --line: #d8ded9;
+      --paper: #f6f7f4;
+      --accent: #137565;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: var(--ink);
+      background: var(--paper);
+    }
+    main {
+      width: min(1120px, calc(100vw - 36px));
+      margin: 0 auto;
+      padding: 42px 0 56px;
+    }
+    nav {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 16px;
+      margin-bottom: 42px;
+      font-size: 14px;
+      color: var(--muted);
+    }
+    nav strong { color: var(--ink); font-size: 18px; }
+    nav a, .links a {
+      color: var(--accent);
+      text-decoration: none;
+      font-weight: 650;
+    }
+    .hero {
+      display: grid;
+      grid-template-columns: minmax(0, 0.9fr) minmax(360px, 1.1fr);
+      gap: 44px;
+      align-items: center;
+    }
+    h1 {
+      font-size: clamp(46px, 8vw, 92px);
+      line-height: 0.95;
+      margin: 0 0 22px;
+      letter-spacing: 0;
+    }
+    .lead {
+      font-size: clamp(18px, 2vw, 24px);
+      line-height: 1.55;
+      margin: 0 0 28px;
+      color: #2a332f;
+    }
+    .links {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin: 30px 0;
+    }
+    .primary {
+      display: inline-flex;
+      align-items: center;
+      min-height: 44px;
+      padding: 0 18px;
+      border-radius: 6px;
+      background: var(--accent);
+      color: white !important;
+    }
+    .secondary {
+      display: inline-flex;
+      align-items: center;
+      min-height: 44px;
+      padding: 0 18px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: white;
+    }
+    .hero img {
+      width: 100%;
+      display: block;
+    }
+    section {
+      margin-top: 56px;
+      border-top: 1px solid var(--line);
+      padding-top: 28px;
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 26px;
+    }
+    h2 {
+      font-size: 18px;
+      margin: 0 0 10px;
+    }
+    p {
+      color: var(--muted);
+      line-height: 1.65;
+      margin: 0;
+    }
+    @media (max-width: 800px) {
+      .hero, section {
+        grid-template-columns: 1fr;
+      }
+      main {
+        width: min(100vw - 28px, 680px);
+      }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <nav>
+      <strong>WeClawBot</strong>
+      <span><a href="README.zh-CN.md">中文</a> · <a href="README.md">English</a></span>
+    </nav>
+
+    <div class="hero">
+      <div>
+        <h1>WeClawBot</h1>
+        <p class="lead">微信连接的黑白屏电子记事贴。把一句留言、提醒、问候或读书笔记安静地留在桌面、餐桌和床头。</p>
+        <p class="lead">Open firmware for a WeChat-connected e-paper sticky note display, built for the Waveshare ESP32-S3-RLCD-4.2.</p>
+        <div class="links">
+          <a class="primary" href="web/">安装 / 配置</a>
+          <a class="secondary" href="README.zh-CN.md">中文说明</a>
+          <a class="secondary" href="README.md">English README</a>
+        </div>
+      </div>
+      <img src="docs/assets/weclawbot-device-hero.png" alt="WeClawBot running on Waveshare ESP32-S3-RLCD-4.2">
+    </div>
+
+    <section>
+      <div>
+        <h2>微信输入</h2>
+        <p>扫码连接后，在微信里发送文字，设备自动更新屏幕；微信端也可以继续修改、清除或替换内容。</p>
+      </div>
+      <div>
+        <h2>浏览器安装</h2>
+        <p>固件刷写和 Wi-Fi 配置走本地浏览器 USB 页面，适合公开仓库直接分发。</p>
+      </div>
+      <div>
+        <h2>隐私可审计</h2>
+        <p>仓库只公开设备端固件和用户指引，云端整理服务可配置，用户可选择自己的 provider。</p>
+      </div>
+    </section>
+  </main>
+</body>
+</html>
+

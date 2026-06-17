@@ -1,0 +1,12 @@
+build/
+managed_components/
+sdkconfig
+sdkconfig.old
+logs/
+.DS_Store
+.pio/
+.vscode/
+*.elf
+*.map
+*.uf2
+
