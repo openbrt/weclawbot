@@ -1,9 +1,9 @@
 # WeClawBot
 
-Open firmware for a WeChat-connected e-paper sticky note display based on the
-Waveshare ESP32-S3-RLCD-4.2 board.
+Open firmware for WeClawBot, a WeChat-connected, AI-assisted desktop note
+display based on the Waveshare ESP32-S3-RLCD-4.2 board.
 
-[中文说明](README.zh-CN.md) | [Install and configure](https://openbrt.github.io/weclawbot/web/)
+[中文说明](README.zh-CN.md) | [Live website](https://weclawbot.link/) | [Install and configure](https://openbrt.github.io/weclawbot/web/)
 
 ![WeClawBot running on real hardware](docs/assets/weclawbot-device-hero.png)
 
@@ -12,8 +12,11 @@ Waveshare ESP32-S3-RLCD-4.2 board.
 WeClawBot turns a small reflective screen into a calm, always-on message surface:
 
 - Scan a QR code with WeChat to connect the bot.
-- Send text in WeChat and let the device show it as an e-paper note.
+- Send text, lists, reminders, or photos in WeChat and let the device show them
+  as a desktop note, calendar page, or black-and-white photo frame.
 - Send corrections such as “修改为...” or “清屏” from WeChat.
+- Keep the fallback calendar, clock, indoor temperature, indoor humidity, Wi-Fi
+  state, and plug/battery state visible when there is no active note.
 - Keep Wi-Fi, WeChat state, notes, and the configured curator endpoint across
   normal firmware updates.
 - Use the local browser install page to flash firmware and configure Wi-Fi over
@@ -31,12 +34,13 @@ repository.
 - USB: native ESP32-S3 USB Serial/JTAG
 - Flash layout: 16 MB, DIO, 80 MHz
 
-Button behavior in firmware `0.1.36`:
+Button behavior in firmware `0.1.45`:
 
 | Button | Short press | Long press |
 | --- | --- | --- |
-| Left / KEY / GPIO18 | Previous page | Clear text notes after 3 seconds |
-| Right / BOOT / GPIO0 | Next page | Clear text, photo, and WeChat login after 5 seconds |
+| Left button | Previous page | Clear text notes after 3 seconds |
+| Right button | Next page | Clear text, photo, and WeChat login after 5 seconds |
+| Middle power button | Reserved by hardware | Power on/off |
 
 ## Install
 
@@ -45,6 +49,11 @@ Open the browser installer:
 https://openbrt.github.io/weclawbot/web/
 
 Chrome or Edge is recommended because the page uses Web Serial and WebUSB.
+
+To feel the product interaction before flashing hardware, open the live
+experience:
+
+https://weclawbot.link/
 
 To enter download mode manually:
 
@@ -97,4 +106,3 @@ This repository does not contain:
 ## License
 
 See [LICENSE](LICENSE).
-

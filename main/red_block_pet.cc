@@ -5,6 +5,9 @@
 
 namespace {
 
+constexpr uint32_t kIdleFrameMs = 100;
+constexpr uint32_t kThinkingFrameMs = 50;
+
 lv_coord_t Scale(float s, int v) {
     return static_cast<lv_coord_t>(std::lround(s * static_cast<float>(v)));
 }
@@ -58,6 +61,7 @@ struct PetCore {
     lv_obj_t* left_pupil = nullptr;
     lv_obj_t* right_pupil = nullptr;
     lv_obj_t* body = nullptr;
+    lv_obj_t* thought_dots[3] = {};
     lv_coord_t center_x = 200;
     lv_coord_t home_y = 40;
     lv_coord_t width = 0;
@@ -191,11 +195,34 @@ void CreateRedBlock(RedBlockPetHandle* handle, lv_obj_t* parent) {
 
     pet.body = Box(pet.root, Scale(scale, 82), Scale(scale, 96), Ink(), Ink(), Scale(scale, 20), 0);
     lv_obj_align(pet.body, LV_ALIGN_TOP_MID, 0, Scale(scale, 10));
-    lv_obj_set_style_transform_pivot_x(pet.body, Scale(scale, 41), 0);
-    lv_obj_set_style_transform_pivot_y(pet.body, Scale(scale, 78), 0);
 
     CreateEyePair(&pet, pet.body, Scale(scale, 24), Scale(scale, 58), Scale(scale, 40),
                   Scale(scale, 32), Scale(scale, 12), Scale(scale, 9));
+
+    for (int i = 0; i < 3; ++i) {
+        const lv_coord_t dot = Scale(scale, 7 + i * 2);
+        pet.thought_dots[i] = Box(pet.root, dot, dot, Ink(), Ink(), dot / 2, 0);
+        lv_obj_add_flag(pet.thought_dots[i], LV_OBJ_FLAG_HIDDEN);
+    }
+}
+
+void UpdateThoughtDots(RedBlockPetHandle* handle, float t) {
+    PetCore& pet = handle->pet;
+    const bool thinking = handle->state == RedBlockPetState::kThinking;
+    for (int i = 0; i < 3; ++i) {
+        lv_obj_t* dot = pet.thought_dots[i];
+        if (!dot) continue;
+        if (!thinking) {
+            lv_obj_add_flag(dot, LV_OBJ_FLAG_HIDDEN);
+            continue;
+        }
+        lv_obj_clear_flag(dot, LV_OBJ_FLAG_HIDDEN);
+        const float lift = 0.5f + 0.5f * std::sinf(t * 3.1f + pet.phase + static_cast<float>(i) * 1.2f);
+        const lv_coord_t x = Scale(pet.scale, 58 + i * 13);
+        const lv_coord_t y = Scale(pet.scale, 22 - i * 9) - RoundCoord(lift * 4.0f);
+        lv_obj_set_pos(dot, x, y);
+        lv_obj_set_size(dot, Scale(pet.scale, 7 + i * 2), Scale(pet.scale, 7 + i * 2));
+    }
 }
 
 void UpdateEyes(RedBlockPetHandle* handle, float t) {
@@ -211,8 +238,8 @@ void UpdateEyes(RedBlockPetHandle* handle, float t) {
             ey = -0.5f;
             break;
         case RedBlockPetState::kThinking:
-            ex = std::sinf(t * 12.5f + pet.phase) * (static_cast<float>(pet.eye_travel) * 0.95f);
-            ey = 0.0f;
+            ex = std::sinf(t * 8.5f + pet.phase) * (static_cast<float>(pet.eye_travel) * 0.95f);
+            ey = std::cosf(t * 5.0f + pet.phase) * (static_cast<float>(pet.eye_travel) * 0.16f);
             break;
         case RedBlockPetState::kSpeaking:
             ex = std::sinf(t * 17.0f + pet.phase) * 1.2f +
@@ -233,9 +260,9 @@ void UpdateEyes(RedBlockPetHandle* handle, float t) {
             break;
         case RedBlockPetState::kIdle:
         default:
-            ex = std::sinf(t * 1.25f + pet.phase) * (static_cast<float>(pet.eye_travel) * 0.70f);
-            ey = std::cosf(t * 0.95f + pet.phase * 0.7f) *
-                 (static_cast<float>(pet.eye_travel) * 0.25f);
+            ex = std::sinf(t * 0.38f + pet.phase) * (static_cast<float>(pet.eye_travel) * 0.96f);
+            ey = std::cosf(t * 0.27f + pet.phase * 0.7f) *
+                 (static_cast<float>(pet.eye_travel) * 0.32f);
             break;
     }
 
@@ -266,7 +293,6 @@ void UpdateRedBlock(RedBlockPetHandle* handle, float t) {
 
     if (handle->vad_speaking) {
         lv_obj_set_pos(pet.root, pet.center_x - pet.width / 2, pet.home_y);
-        lv_obj_set_style_transform_rotation(pet.body, 0, 0);
         handle->eye_angle = 90.0f;
         const RedBlockPetState original = handle->state;
         handle->state = RedBlockPetState::kListening;
@@ -277,15 +303,14 @@ void UpdateRedBlock(RedBlockPetHandle* handle, float t) {
 
     const float speed = (handle->state == RedBlockPetState::kThinking) ? 2.0f : 1.0f;
     const float breath = BreathingGain(handle);
-    const float bob = std::sinf(t * 1.7f * speed + pet.phase);
+    const float bob = std::sinf(t * 1.25f * speed + pet.phase);
     const lv_coord_t x = pet.center_x - pet.width / 2 +
-                         RoundCoord(std::sinf(t * 0.9f + pet.phase) * 3.0f);
-    lv_coord_t y = pet.home_y + RoundCoord(bob * 5.0f * breath);
+                         RoundCoord(std::sinf(t * 0.42f + pet.phase) * 5.0f);
+    lv_coord_t y = pet.home_y + RoundCoord(bob * 7.0f * breath);
     if (handle->state == RedBlockPetState::kMessage) y += 8;
     lv_obj_set_pos(pet.root, x, y);
-    lv_obj_set_style_transform_rotation(
-        pet.body, static_cast<int16_t>(std::lround(std::sinf(t * 1.3f + pet.phase) * 22.0f)), 0);
     UpdateEyes(handle, t);
+    UpdateThoughtDots(handle, t);
 }
 
 void AnimationTimerCallback(lv_timer_t* timer) {
@@ -309,12 +334,12 @@ void* RedBlockPetCreate(lv_obj_t* parent) {
     lv_obj_set_size(handle->container, LV_PCT(100), LV_PCT(100));
     lv_obj_set_pos(handle->container, 0, 0);
     lv_obj_set_style_bg_color(handle->container, Paper(), 0);
-    lv_obj_set_style_bg_opa(handle->container, LV_OPA_COVER, 0);
+    lv_obj_set_style_bg_opa(handle->container, LV_OPA_TRANSP, 0);
     lv_obj_clear_flag(handle->container, LV_OBJ_FLAG_SCROLLABLE);
 
     CreateRedBlock(handle, handle->container);
     lv_obj_move_foreground(handle->container);
-    handle->anim_timer = lv_timer_create(AnimationTimerCallback, 33, handle);
+    handle->anim_timer = lv_timer_create(AnimationTimerCallback, kIdleFrameMs, handle);
     return handle;
 }
 
@@ -341,6 +366,23 @@ void RedBlockPetSetState(void* raw_handle, RedBlockPetState state) {
         ScheduleNextBlink(handle, handle->state_started_ms);
     }
     handle->blink_started_ms = 0;
+    if (handle->anim_timer) {
+        const uint32_t period = state == RedBlockPetState::kThinking ? kThinkingFrameMs
+                                : kIdleFrameMs;
+        lv_timer_set_period(handle->anim_timer, period);
+    }
+}
+
+void RedBlockPetSetPosition(void* raw_handle, int center_x, int home_y) {
+    if (!raw_handle) return;
+    auto* handle = static_cast<RedBlockPetHandle*>(raw_handle);
+    handle->pet.center_x = static_cast<lv_coord_t>(center_x);
+    handle->pet.home_y = static_cast<lv_coord_t>(home_y);
+    if (handle->pet.root) {
+        lv_obj_set_pos(handle->pet.root,
+                       handle->pet.center_x - handle->pet.width / 2,
+                       handle->pet.home_y);
+    }
 }
 
 void RedBlockPetSetEyeAngle(void* raw_handle, float angle) {
@@ -365,4 +407,3 @@ void RedBlockPetSetVadSpeaking(void* raw_handle, bool talking) {
         RedBlockPetSetState(raw_handle, RedBlockPetState::kIdle);
     }
 }
-

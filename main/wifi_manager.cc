@@ -19,6 +19,7 @@ constexpr int kFailedBit = BIT1;
 constexpr int kMaxRetries = 20;
 constexpr char kSsidKey[] = "wifi_ssid";
 constexpr char kPasswordKey[] = "wifi_pass";
+constexpr char kDhcpHostname[] = "WeClawBot";
 
 bool ReadString(nvs_handle_t nvs, const char* key, std::string& out) {
     size_t len = 0;
@@ -106,7 +107,15 @@ bool WifiManager::Connect() {
         ESP_LOGE(kTag, "esp_event_loop_create_default failed: %s", esp_err_to_name(err));
         return false;
     }
-    esp_netif_create_default_wifi_sta();
+    esp_netif_t* sta_netif = esp_netif_create_default_wifi_sta();
+    if (!sta_netif) {
+        ESP_LOGE(kTag, "failed to create station network interface");
+        return false;
+    }
+    err = esp_netif_set_hostname(sta_netif, kDhcpHostname);
+    if (err != ESP_OK) {
+        ESP_LOGW(kTag, "failed to set DHCP hostname: %s", esp_err_to_name(err));
+    }
 
     wifi_init_config_t init_config = WIFI_INIT_CONFIG_DEFAULT();
     ESP_ERROR_CHECK(esp_wifi_init(&init_config));
@@ -129,7 +138,7 @@ bool WifiManager::Connect() {
     ESP_ERROR_CHECK(esp_wifi_set_ps(WIFI_PS_NONE));
     ESP_ERROR_CHECK(esp_wifi_start());
 
-    ESP_LOGI(kTag, "Connecting to %s", ssid_.c_str());
+    ESP_LOGI(kTag, "Connecting to %s as %s", ssid_.c_str(), kDhcpHostname);
     EventBits_t bits = xEventGroupWaitBits(event_group_, kConnectedBit | kFailedBit, pdFALSE, pdFALSE,
                                            pdMS_TO_TICKS(45000));
     connected_ = bits & kConnectedBit;

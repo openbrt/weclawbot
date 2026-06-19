@@ -1,11 +1,13 @@
 set(SOURCES
     "app_main.cc"
+    "battery_monitor.cc"
     "button_manager.cc"
     "button_wrapper.cc"
     "note_store.cc"
     "red_block_pet.cc"
     "rlcd_display.cc"
     "serial_config.cc"
+    "shtc3_sensor.cc"
     "ui.cc"
     "wechat_bot.cc"
     "wifi_manager.cc"
@@ -27,6 +29,15 @@ endfunction()
 
 find_component_by_pattern("xiaozhi-fonts" WEC_FONTS_COMPONENT)
 find_component_by_pattern("esp_lvgl_port" WEC_LVGL_PORT_COMPONENT)
+if(CONFIG_WEC_PRODUCT_DISK)
+    list(APPEND SOURCES "usb_product_disk.cc")
+    find_component_by_pattern("esp_tinyusb" WEC_TINYUSB_COMPONENT)
+    set(WEC_PRODUCT_DISK_REQUIRES
+        fatfs
+        wear_levelling
+        ${WEC_TINYUSB_COMPONENT}
+    )
+endif()
 
 idf_component_register(
     SRCS ${SOURCES}
@@ -41,15 +52,18 @@ idf_component_register(
         esp_timer
         esp_psram
         esp_driver_gpio
+        esp_driver_i2c
         esp_driver_spi
         esp_driver_uart
         esp_driver_usb_serial_jtag
+        esp_adc
         mbedtls
         json
         button
         lvgl
         ${WEC_LVGL_PORT_COMPONENT}
         ${WEC_FONTS_COMPONENT}
+        ${WEC_PRODUCT_DISK_REQUIRES}
 )
 
 target_compile_features(${COMPONENT_LIB} PRIVATE cxx_std_17)

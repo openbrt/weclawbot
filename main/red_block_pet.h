@@ -15,7 +15,7 @@ enum class RedBlockPetState {
 void* RedBlockPetCreate(lv_obj_t* parent);
 void RedBlockPetDestroy(void* handle);
 void RedBlockPetSetState(void* handle, RedBlockPetState state);
+void RedBlockPetSetPosition(void* handle, int center_x, int home_y);
 void RedBlockPetSetEyeAngle(void* handle, float angle);
 void RedBlockPetSetAudioLevel(void* handle, float db);
 void RedBlockPetSetVadSpeaking(void* handle, bool talking);
-

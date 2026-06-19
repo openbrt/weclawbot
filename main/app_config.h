@@ -3,9 +3,17 @@
 #include <driver/gpio.h>
 #include <driver/spi_common.h>
 
-#define WEC_FIRMWARE_VERSION "0.1.36"
+#define WEC_FIRMWARE_VERSION "0.1.45"
+#define WEC_PRODUCT_URL "https://weclawbot.link"
+#define WEC_PRODUCT_HOST "weclawbot.link"
 
 #define WEC_I2C_HOST I2C_NUM_0
+#define WEC_I2C_SDA_PIN GPIO_NUM_13
+#define WEC_I2C_SCL_PIN GPIO_NUM_14
+#define WEC_SHTC3_I2C_ADDR 0x70
+
+#define WEC_BATTERY_ADC_GPIO GPIO_NUM_4
+
 #define WEC_RLCD_SPI_HOST SPI3_HOST
 
 #define WEC_BOOT_BUTTON_GPIO GPIO_NUM_0

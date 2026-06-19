@@ -8,6 +8,7 @@
 #include <ctime>
 #include <initializer_list>
 #include <strings.h>
+#include <sys/time.h>
 #include <utility>
 #include <vector>
 
@@ -25,6 +26,12 @@
 #include <mbedtls/base64.h>
 #include <mbedtls/md.h>
 #include <nvs.h>
+#include <sdkconfig.h>
+
+#if CONFIG_TINYUSB_CDC_ENABLED
+#define WEC_HAS_TINYUSB_CDC 1
+#include <tinyusb_cdc_acm.h>
+#endif
 
 #include "app_config.h"
 
@@ -48,6 +55,11 @@ constexpr char kAiTokenKey[] = "ai_token";
 constexpr char kAiEndpointKey[] = "ai_endpoint";
 constexpr char kAiModelKey[] = "ai_model";
 
+void ConfigureLocalTimezone() {
+    setenv("TZ", "CST-8", 1);
+    tzset();
+}
+
 std::string JsonString(const cJSON* object, const char* key, const char* fallback = "") {
     if (!object || !key) {
         return fallback ? fallback : "";
@@ -62,6 +74,60 @@ int JsonInt(const cJSON* object, const char* key, int fallback = 0) {
     }
     cJSON* item = cJSON_GetObjectItem(const_cast<cJSON*>(object), key);
     return cJSON_IsNumber(item) ? item->valueint : fallback;
+}
+
+int MonthFromHttpDate(const char* month) {
+    static constexpr const char* kMonths[] = {
+        "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+        "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+    };
+    for (int i = 0; i < 12; ++i) {
+        if (std::strncmp(month, kMonths[i], 3) == 0) {
+            return i;
+        }
+    }
+    return -1;
+}
+
+bool SetTimeFromHttpDate(const std::string& value) {
+    char weekday[4] = {};
+    char month[4] = {};
+    char zone[4] = {};
+    int day = 0;
+    int year = 0;
+    int hour = 0;
+    int minute = 0;
+    int second = 0;
+    if (std::sscanf(value.c_str(), "%3[^,], %d %3s %d %d:%d:%d %3s",
+                    weekday, &day, month, &year, &hour, &minute, &second, zone) != 8 ||
+        std::strcmp(zone, "GMT") != 0) {
+        return false;
+    }
+    const int month_index = MonthFromHttpDate(month);
+    if (month_index < 0 || year < 2020 || day < 1 || day > 31 ||
+        hour < 0 || hour > 23 || minute < 0 || minute > 59 || second < 0 || second > 59) {
+        return false;
+    }
+
+    std::tm utc = {};
+    utc.tm_year = year - 1900;
+    utc.tm_mon = month_index;
+    utc.tm_mday = day;
+    utc.tm_hour = hour;
+    utc.tm_min = minute;
+    utc.tm_sec = second;
+    utc.tm_isdst = 0;
+    // The firmware timezone is CST-8. mktime interprets this GMT value as
+    // local time, so compensate by eight hours before setting the UTC epoch.
+    const std::time_t local_epoch = std::mktime(&utc);
+    if (local_epoch < 0) {
+        return false;
+    }
+    const timeval tv = {
+        .tv_sec = local_epoch + 8 * 60 * 60,
+        .tv_usec = 0,
+    };
+    return settimeofday(&tv, nullptr) == 0;
 }
 
 void AddBaseInfo(cJSON* root) {
@@ -318,11 +384,46 @@ std::string PreviewText(const char* text, size_t max_bytes = 80) {
     return value.substr(0, cut) + "...";
 }
 
+#if WEC_HAS_TINYUSB_CDC
+void WriteCdcBytes(const uint8_t* data, size_t size) {
+    if (!tinyusb_cdcacm_initialized(TINYUSB_CDC_ACM_0) || !data || size == 0) {
+        return;
+    }
+
+    constexpr size_t kChunkSize = 128;
+    size_t offset = 0;
+    while (offset < size) {
+        const size_t remaining = size - offset;
+        const size_t requested = remaining < kChunkSize ? remaining : kChunkSize;
+        const size_t queued =
+            tinyusb_cdcacm_write_queue(TINYUSB_CDC_ACM_0, data + offset, requested);
+        if (queued == 0) {
+            tinyusb_cdcacm_write_flush(TINYUSB_CDC_ACM_0, pdMS_TO_TICKS(20));
+            vTaskDelay(pdMS_TO_TICKS(1));
+            continue;
+        }
+        offset += queued;
+        tinyusb_cdcacm_write_flush(TINYUSB_CDC_ACM_0, pdMS_TO_TICKS(20));
+    }
+}
+#endif
+
+void PrintDebugLine(const std::string& line) {
+    std::printf("%s\n", line.c_str());
+    std::fflush(stdout);
+#if WEC_HAS_TINYUSB_CDC
+    WriteCdcBytes(reinterpret_cast<const uint8_t*>(line.data()), line.size());
+    static constexpr uint8_t newline[] = "\n";
+    WriteCdcBytes(newline, 1);
+#endif
+}
+
 void PrintJsonLine(cJSON* root) {
     char* raw = cJSON_PrintUnformatted(root);
     if (raw) {
-        std::printf("WEC:%s\n", raw);
-        std::fflush(stdout);
+        std::string line = "WEC:";
+        line += raw;
+        PrintDebugLine(line);
         cJSON_free(raw);
     }
 }
@@ -369,6 +470,28 @@ std::string TrimCommandArgument(std::string value) {
         }
     }
     return value;
+}
+
+std::string TrimWhitespace(std::string value) {
+    while (!value.empty() && std::isspace(static_cast<unsigned char>(value.front()))) {
+        value.erase(value.begin());
+    }
+    while (!value.empty() && std::isspace(static_cast<unsigned char>(value.back()))) {
+        value.pop_back();
+    }
+    return value;
+}
+
+bool IsHelpCommand(const std::string& input) {
+    return input == "/help" || input == "help" || input == "帮助" ||
+           input == "官网" || input == "网站" || input == "设置" ||
+           input == "配置" || input == "怎么配置";
+}
+
+std::string HelpReply() {
+    return std::string("WeClawBot 入口：") + WEC_PRODUCT_URL +
+           "\n\n也可以直接把设备 USB-C 连到电脑，打开 WECLAWBOT U 盘里的安装页或配置页。"
+           "\n常用命令：/next 下一页，/prev 上一页，/clear 清除当前微笺，/clear all 全清。";
 }
 
 std::string ExtractReplacementText(const char* text) {
@@ -483,6 +606,8 @@ esp_err_t WechatBot::HttpEventHandler(esp_http_client_event_t* event) {
     if (event->event_id == HTTP_EVENT_ON_HEADER && event->header_key && event->header_value) {
         if (strcasecmp(event->header_key, "x-encrypted-param") == 0) {
             response->encrypted_param = event->header_value;
+        } else if (strcasecmp(event->header_key, "date") == 0) {
+            response->date_header = event->header_value;
         }
     } else if (event->event_id == HTTP_EVENT_ON_DATA && event->data && event->data_len > 0) {
         if (response->body.size() + event->data_len <= kMaxHttpBody) {
@@ -537,6 +662,76 @@ void WechatBot::RequestRelogin() {
     relogin_requested_ = true;
 }
 
+bool WechatBot::IsIlinkSessionInvalid(int http_status,
+                                      int ret,
+                                      int errcode,
+                                      const cJSON* payload) const {
+    (void)ret;
+    (void)errcode;
+    if (http_status == 401 || http_status == 403) {
+        return true;
+    }
+
+    std::string message = FirstJsonString(payload, {
+        "errmsg", "err_msg", "error_message", "message", "error", "detail",
+    });
+    if (message.empty()) {
+        return false;
+    }
+    std::transform(message.begin(), message.end(), message.begin(), [](unsigned char ch) {
+        return static_cast<char>(std::tolower(ch));
+    });
+
+    static constexpr const char* kInvalidMarkers[] = {
+        "token invalid", "token expired", "token expire", "token revoked", "token logout",
+        "session invalid", "session expired", "unauthorized", "not authorized",
+        "not login", "not logged", "auth failed", "authentication failed",
+        "token失效", "token过期", "token无效", "令牌失效", "令牌过期", "令牌无效",
+        "登录失效", "登录过期", "登录无效", "会话失效", "会话过期", "会话无效",
+        "重新扫码", "被挤下线", "其他设备", "其它设备", "别处登录",
+    };
+    for (const char* marker : kInvalidMarkers) {
+        if (message.find(marker) != std::string::npos) {
+            return true;
+        }
+    }
+    return false;
+}
+
+void WechatBot::InvalidateIlinkSession(const char* operation,
+                                       int http_status,
+                                       int ret,
+                                       int errcode,
+                                       const cJSON* payload) {
+    if (relogin_requested_.exchange(true)) {
+        return;
+    }
+    const std::string message = FirstJsonString(payload, {
+        "errmsg", "err_msg", "error_message", "message", "error", "detail",
+    });
+    ESP_LOGW(kTag, "iLink session invalid during %s status=%d ret=%d errcode=%d msg=%s",
+             operation ? operation : "unknown", http_status, ret, errcode, message.c_str());
+    cJSON* log = NewEventLog("wechat", "ilink_session_invalid");
+    cJSON_AddStringToObject(log, "operation", operation ? operation : "unknown");
+    cJSON_AddNumberToObject(log, "status", http_status);
+    cJSON_AddNumberToObject(log, "ret", ret);
+    cJSON_AddNumberToObject(log, "errcode", errcode);
+    if (!message.empty()) {
+        cJSON_AddStringToObject(log, "message", message.c_str());
+    }
+    EmitEventLog(log);
+
+    ClearCredentials();
+    bot_token_.clear();
+    bot_id_.clear();
+    qrcode_token_.clear();
+    cursor_.clear();
+    connected_ = false;
+    login_state_ = LoginState::kStarting;
+    qr_seconds_left_ = 0;
+    ui_.ShowError("微信连接已失效", "已在另一台设备连接，正在返回二维码");
+}
+
 void WechatBot::ClearSavedCredentials() {
     ClearCredentials();
     bot_token_.clear();
@@ -580,28 +775,97 @@ bool WechatBot::CurateLoopbackImage(const char* url) {
 }
 
 void WechatBot::SyncTime() {
-    setenv("TZ", "CST-8", 1);
-    tzset();
+    ConfigureLocalTimezone();
 
-    esp_sntp_config_t config = ESP_NETIF_SNTP_DEFAULT_CONFIG("ntp.aliyun.com");
-    config.smooth_sync = false;
-    esp_err_t err = esp_netif_sntp_init(&config);
-    if (err != ESP_OK && err != ESP_ERR_INVALID_STATE) {
-        ESP_LOGW(kTag, "SNTP init failed: %s", esp_err_to_name(err));
+    std::time_t existing = 0;
+    std::time(&existing);
+    std::tm existing_tm = {};
+    localtime_r(&existing, &existing_tm);
+    if (existing_tm.tm_year >= 120) {
+        char buf[32];
+        std::strftime(buf, sizeof(buf), "%Y-%m-%d %H:%M:%S", &existing_tm);
+        std::printf("WEC:{\"scope\":\"time\",\"stage\":\"time_valid\","
+                    "\"local\":\"%s\",\"ok\":true,\"type\":\"event\"}\n", buf);
+        ui_.Tick();
+        return;
     }
 
-    std::time_t now = 0;
-    std::tm tm = {};
-    for (int i = 0; i < 24; ++i) {
-        std::time(&now);
-        localtime_r(&now, &tm);
-        if (tm.tm_year >= 120) {
-            ESP_LOGI(kTag, "Time synced");
-            return;
+    static std::atomic_bool initialized{false};
+    static std::atomic_bool syncing{false};
+    static std::atomic_uint ntp_server_index{0};
+    if (syncing.exchange(true)) {
+        return;
+    }
+
+    static constexpr const char* kNtpServers[] = {
+        "ntp.aliyun.com",
+        "ntp.tencent.com",
+        "time.cloudflare.com",
+    };
+    const char* ntp_server = kNtpServers[ntp_server_index.fetch_add(1) % 3];
+    esp_err_t err = ESP_OK;
+    if (!initialized.load()) {
+        esp_sntp_config_t config = ESP_NETIF_SNTP_DEFAULT_CONFIG(ntp_server);
+        config.smooth_sync = false;
+        config.start = false;
+        err = esp_netif_sntp_init(&config);
+        if (err == ESP_OK || err == ESP_ERR_INVALID_STATE) {
+            initialized = true;
+            err = ESP_OK;
         }
-        vTaskDelay(pdMS_TO_TICKS(500));
+    } else {
+        esp_sntp_setservername(0, ntp_server);
     }
-    ESP_LOGW(kTag, "Time sync timed out, continuing");
+    if (err != ESP_OK) {
+        ESP_LOGW(kTag, "SNTP init failed: %s", esp_err_to_name(err));
+        syncing = false;
+        return;
+    }
+
+    esp_sntp_set_sync_status(SNTP_SYNC_STATUS_RESET);
+    err = esp_netif_sntp_start();
+    if (err != ESP_OK) {
+        ESP_LOGW(kTag, "SNTP start failed: %s", esp_err_to_name(err));
+        syncing = false;
+        return;
+    }
+
+    err = esp_netif_sntp_sync_wait(pdMS_TO_TICKS(15000));
+    std::time_t now = 0;
+    std::time(&now);
+    std::tm tm = {};
+    localtime_r(&now, &tm);
+    bool synced = err == ESP_OK && tm.tm_year >= 120;
+    if (!synced) {
+        std::string http_date;
+        const std::string health = HttpGet(WEC_PRODUCT_URL "/api/health", &http_date);
+        if (!health.empty() && SetTimeFromHttpDate(http_date)) {
+            std::time(&now);
+            localtime_r(&now, &tm);
+            synced = tm.tm_year >= 120;
+            if (synced) {
+                ESP_LOGI(kTag, "Time synced from HTTPS Date: %s", http_date.c_str());
+            }
+        }
+    }
+    if (synced) {
+        char buf[32];
+        std::strftime(buf, sizeof(buf), "%Y-%m-%d %H:%M:%S", &tm);
+        ESP_LOGI(kTag, "Time synced: %s", buf);
+        std::printf("WEC:{\"scope\":\"time\",\"stage\":\"sntp_sync\","
+                    "\"local\":\"%s\",\"ok\":true,\"type\":\"event\"}\n", buf);
+    } else {
+        ESP_LOGW(kTag, "Time sync timed out: %s", esp_err_to_name(err));
+        std::printf("WEC:{\"scope\":\"time\",\"stage\":\"sntp_sync\","
+                    "\"error\":\"%s\",\"ok\":false,\"type\":\"event\"}\n",
+                    esp_err_to_name(err));
+    }
+    syncing = false;
+    ui_.Tick();
+}
+
+void WechatBot::RetryTimeSync() {
+    SyncTime();
 }
 
 void WechatBot::LoadCredentials() {
@@ -841,6 +1105,9 @@ void WechatBot::RunGetUpdatesLoop() {
     int fail_count = 0;
     while (!relogin_requested_) {
         const bool ok = DoGetUpdates();
+        if (relogin_requested_) {
+            return;
+        }
         if (ok) {
             if (fail_count >= 10) {
                 RenderCurrentOrEmpty();
@@ -882,6 +1149,13 @@ bool WechatBot::DoGetUpdates() {
         return true;
     }
     if (!response.Ok() || response.body.empty()) {
+        cJSON* failure = response.body.empty() ? nullptr : cJSON_Parse(response.body.c_str());
+        if (IsIlinkSessionInvalid(response.status, 0, 0, failure)) {
+            InvalidateIlinkSession("getupdates", response.status, 0, 0, failure);
+            if (failure) cJSON_Delete(failure);
+            return true;
+        }
+        if (failure) cJSON_Delete(failure);
         ESP_LOGW(kTag, "getupdates request failed status=%d err=%s",
                  response.status, esp_err_to_name(response.error));
         cJSON* log = NewEventLog("wechat", "getupdates_poll");
@@ -917,6 +1191,14 @@ bool WechatBot::DoGetUpdates() {
     EmitEventLog(poll_log);
     if (ret != 0 || errcode != 0) {
         ESP_LOGW(kTag, "getupdates ret=%d errcode=%d", ret, errcode);
+        // A 2xx response with a non-zero protocol result means iLink rejected
+        // this session. Retrying the same token cannot recover it; return to QR.
+        if (IsIlinkSessionInvalid(response.status, ret, errcode, root) ||
+            (response.status >= 200 && response.status < 300)) {
+            InvalidateIlinkSession("getupdates", response.status, ret, errcode, root);
+            cJSON_Delete(root);
+            return true;
+        }
         cJSON_Delete(root);
         return false;
     }
@@ -1021,27 +1303,36 @@ void WechatBot::HandleText(const char* from_user, const char* text, bool allow_c
     cJSON_AddBoolToObject(log, "commands_enabled", allow_commands);
     EmitEventLog(log);
 
-    if (allow_commands && std::strcmp(text, "/next") == 0) {
+    const std::string command = allow_commands ? TrimWhitespace(text ? text : "") : "";
+
+    if (allow_commands && IsHelpCommand(command)) {
+        EmitEventLog(NewEventLog("command", "help"));
+        if (from_user && from_user[0] != '\0') {
+            SendTextMessage(from_user, HelpReply());
+        }
+        return;
+    }
+    if (allow_commands && command == "/next") {
         EmitEventLog(NewEventLog("command", "next"));
         if (!ui_.ShowNextNotePage(notes_.All(), notes_.CurrentIndex())) {
             RenderCurrentOrEmpty();
         }
         return;
     }
-    if (allow_commands && std::strcmp(text, "/prev") == 0) {
+    if (allow_commands && command == "/prev") {
         EmitEventLog(NewEventLog("command", "prev"));
         if (!ui_.ShowPreviousNotePage(notes_.All(), notes_.CurrentIndex())) {
             RenderCurrentOrEmpty();
         }
         return;
     }
-    if (allow_commands && std::strcmp(text, "/clear") == 0) {
+    if (allow_commands && command == "/clear") {
         EmitEventLog(NewEventLog("command", "clear_current"));
         notes_.ClearCurrent();
         RenderCurrentOrEmpty();
         return;
     }
-    if (allow_commands && std::strcmp(text, "/clear all") == 0) {
+    if (allow_commands && command == "/clear all") {
         EmitEventLog(NewEventLog("command", "clear_all"));
         notes_.ClearAll();
         RenderCurrentOrEmpty();
@@ -1537,9 +1828,9 @@ bool WechatBot::ApplyCuratorDecision(const char* from_user, std::string response
             cJSON_AddNumberToObject(screen_log, "width", screen_frame_width);
             cJSON_AddNumberToObject(screen_log, "height", screen_frame_height);
             cJSON_AddNumberToObject(screen_log, "stride", screen_frame_stride);
-            EmitEventLog(screen_log);
             cJSON_AddStringToObject(screen_log, "revision", screen_revision.c_str());
             cJSON_AddStringToObject(screen_log, "render_id", render_id.c_str());
+            EmitEventLog(screen_log);
             notes_.AddRendered(note_text, from_user ? from_user : "", screen_revision, render_id,
                                std::move(screen_frames),
                                screen_frame_width, screen_frame_height, screen_frame_stride);
@@ -1669,6 +1960,7 @@ bool WechatBot::SendTextMessage(const char* to_user, const std::string& text) {
     cJSON* send_json = cJSON_Parse(response.body.c_str());
     const int ret = JsonInt(send_json, "ret", 0);
     const int errcode = JsonInt(send_json, "errcode", 0);
+    const bool session_invalid = IsIlinkSessionInvalid(response.status, ret, errcode, send_json);
     if (send_json) {
         cJSON_Delete(send_json);
     }
@@ -1681,6 +1973,9 @@ bool WechatBot::SendTextMessage(const char* to_user, const std::string& text) {
     cJSON_AddNumberToObject(log, "errcode", errcode);
     cJSON_AddNumberToObject(log, "reply_bytes", static_cast<double>(text.size()));
     EmitEventLog(log);
+    if (!ok && session_invalid) {
+        InvalidateIlinkSession("sendmessage", response.status, ret, errcode, nullptr);
+    }
     return ok;
 }
 
@@ -1758,6 +2053,9 @@ bool WechatBot::SendPreviewImageMessage(const char* to_user, const std::string& 
         }
     }
     if (!upload_ticket.Ok() || upload_ticket.body.empty()) {
+        cJSON* failure = upload_ticket.body.empty() ? nullptr : cJSON_Parse(upload_ticket.body.c_str());
+        const bool session_invalid = IsIlinkSessionInvalid(upload_ticket.status, 0, 0, failure);
+        if (failure) cJSON_Delete(failure);
         cJSON* log = NewEventLog("wechat", "send_preview_image_result");
         cJSON_AddBoolToObject(log, "sent", false);
         cJSON_AddStringToObject(log, "image_stage", "getuploadurl");
@@ -1766,6 +2064,9 @@ bool WechatBot::SendPreviewImageMessage(const char* to_user, const std::string& 
         cJSON_AddNumberToObject(log, "esp_error", upload_ticket.error);
         cJSON_AddNumberToObject(log, "preview_bytes", static_cast<double>(preview_size));
         EmitEventLog(log);
+        if (session_invalid) {
+            InvalidateIlinkSession("getuploadurl", upload_ticket.status, 0, 0, nullptr);
+        }
         return false;
     }
 
@@ -1774,6 +2075,10 @@ bool WechatBot::SendPreviewImageMessage(const char* to_user, const std::string& 
     const int upload_errcode = JsonInt(upload_json, "errcode", 0);
     std::string upload_full_url = JsonString(upload_json, "upload_full_url");
     std::string upload_param = JsonString(upload_json, "upload_param");
+    const bool upload_session_invalid = IsIlinkSessionInvalid(upload_ticket.status,
+                                                               upload_ret,
+                                                               upload_errcode,
+                                                               upload_json);
     if (upload_json) {
         cJSON_Delete(upload_json);
     }
@@ -1787,6 +2092,10 @@ bool WechatBot::SendPreviewImageMessage(const char* to_user, const std::string& 
         cJSON_AddBoolToObject(log, "has_upload_full_url", !upload_full_url.empty());
         cJSON_AddBoolToObject(log, "has_upload_param", !upload_param.empty());
         EmitEventLog(log);
+        if (upload_session_invalid) {
+            InvalidateIlinkSession("getuploadurl", upload_ticket.status,
+                                   upload_ret, upload_errcode, nullptr);
+        }
         return false;
     }
 
@@ -1912,6 +2221,7 @@ bool WechatBot::SendPreviewImageMessage(const char* to_user, const std::string& 
     cJSON* send_json = cJSON_Parse(response.body.c_str());
     const int ret = JsonInt(send_json, "ret", 0);
     const int errcode = JsonInt(send_json, "errcode", 0);
+    const bool session_invalid = IsIlinkSessionInvalid(response.status, ret, errcode, send_json);
     if (send_json) {
         cJSON_Delete(send_json);
     }
@@ -1927,10 +2237,13 @@ bool WechatBot::SendPreviewImageMessage(const char* to_user, const std::string& 
     cJSON_AddNumberToObject(log, "preview_bytes", static_cast<double>(preview_size));
     cJSON_AddNumberToObject(log, "cipher_bytes", static_cast<double>(ciphertext.size()));
     EmitEventLog(log);
+    if (!ok && session_invalid) {
+        InvalidateIlinkSession("sendmessage_preview", response.status, ret, errcode, nullptr);
+    }
     return ok;
 }
 
-std::string WechatBot::HttpGet(const std::string& url) {
+std::string WechatBot::HttpGet(const std::string& url, std::string* date_header) {
     HttpResponse response;
     const bool locked = TakeHttpMutex(pdMS_TO_TICKS(WEC_HTTP_TIMEOUT_MS + 5000));
     if (!locked) {
@@ -1966,6 +2279,9 @@ std::string WechatBot::HttpGet(const std::string& url) {
     int status = esp_http_client_get_status_code(client);
     esp_http_client_cleanup(client);
     GiveHttpMutex(locked);
+    if (date_header) {
+        *date_header = response.date_header;
+    }
     if (err != ESP_OK || response.overflow || status >= 400) {
         ESP_LOGW(kTag, "GET failed status=%d err=%s url=%s", status, esp_err_to_name(err), url.c_str());
         return "";

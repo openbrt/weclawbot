@@ -65,4 +65,20 @@ config WEC_REPLY_ON_TEXT
     bool "Reply to WeChat when a text note is posted"
     default n
 
+config WEC_PRODUCT_DISK
+    bool "Expose WeClawBot USB product disk"
+    default n
+    help
+        Enable the TinyUSB MSC product disk used by release builds to expose
+        help files and website links. Keep this disabled for development builds
+        so USB-Serial-JTAG remains available for flashing and live logs.
+
+config WEC_BATTERY_INSTALLED
+    bool "Device has an installed 18650 battery"
+    default n
+    help
+        BAT_ADC reads the board power path through a divider. On USB power it
+        can still report a lithium-like voltage even when no 18650 cell is
+        installed, so keep this disabled for boards running without a battery.
+
 endmenu

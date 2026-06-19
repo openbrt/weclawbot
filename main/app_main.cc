@@ -1,4 +1,5 @@
 #include <cstdio>
+#include <cstdlib>
 #include <ctime>
 #include <string>
 
@@ -9,11 +10,16 @@
 #include <freertos/task.h>
 
 #include "app_config.h"
+#include "battery_monitor.h"
 #include "button_manager.h"
 #include "note_store.h"
 #include "rlcd_display.h"
 #include "serial_config.h"
+#include "shtc3_sensor.h"
 #include "ui.h"
+#if CONFIG_WEC_PRODUCT_DISK
+#include "usb_product_disk.h"
+#endif
 #include "wechat_bot.h"
 #include "wifi_manager.h"
 
@@ -27,6 +33,13 @@ WifiManager wifi;
 WechatBot bot(ui, notes);
 ButtonManager buttons(ui, notes, bot);
 SerialConfig serial_config(ui, wifi, notes, bot);
+Shtc3Sensor shtc3;
+BatteryMonitor battery;
+
+void ConfigureLocalTimezone() {
+    setenv("TZ", "CST-8", 1);
+    tzset();
+}
 
 void BotTask(void*) {
     bot.Start();
@@ -81,9 +94,77 @@ void ScreensaverTask(void*) {
         vTaskDelay(pdMS_TO_TICKS(1000));
     }
 }
+
+void EnvironmentTask(void*) {
+    bool sensor_ready = false;
+    bool have_reading = false;
+    int tick = 0;
+    while (true) {
+        ui.SetNetworkStatus(wifi.Connected());
+        if (tick % 12 == 0) {
+            const BatteryReading battery_reading = battery.Read();
+            if (battery_reading.valid) {
+                ui.SetBatteryStatus(battery_reading.present, battery_reading.percent);
+                std::printf(
+                    "WEC:{\"scope\":\"power\",\"stage\":\"battery_read\","
+                    "\"present\":%s,\"percent\":%d,\"voltage\":%.2f,"
+                    "\"ok\":true,\"type\":\"event\"}\n",
+                    battery_reading.present ? "true" : "false",
+                    battery_reading.percent,
+                    battery_reading.voltage);
+            } else {
+                std::printf(
+                    "WEC:{\"scope\":\"power\",\"stage\":\"battery_read\","
+                    "\"ok\":false,\"type\":\"event\"}\n");
+            }
+
+            if (!sensor_ready) {
+                sensor_ready = shtc3.Init();
+            }
+            float temperature = 0.0f;
+            float humidity = 0.0f;
+            bool ok = sensor_ready && shtc3.Read(&temperature, &humidity);
+            if (!ok && sensor_ready) {
+                vTaskDelay(pdMS_TO_TICKS(120));
+                ok = shtc3.Read(&temperature, &humidity);
+            }
+            if (ok) {
+                have_reading = true;
+                ui.SetEnvironment(temperature, humidity, true);
+                std::printf(
+                    "WEC:{\"scope\":\"sensor\",\"stage\":\"shtc3_read\","
+                    "\"temperature_c\":%.1f,\"humidity_percent\":%.1f,"
+                    "\"ok\":true,\"type\":\"event\"}\n",
+                    temperature, humidity);
+            } else {
+                if (!have_reading) {
+                    ui.SetEnvironment(0.0f, 0.0f, false);
+                } else {
+                    ui.Tick();
+                }
+                std::printf(
+                    "WEC:{\"scope\":\"sensor\",\"stage\":\"shtc3_read\","
+                    "\"ok\":false,\"type\":\"event\"}\n");
+            }
+        } else {
+            ui.Tick();
+        }
+        tick = (tick + 1) % 12;
+        vTaskDelay(pdMS_TO_TICKS(5000));
+    }
+}
+
+void TimeSyncTask(void*) {
+    while (true) {
+        bot.RetryTimeSync();
+        vTaskDelay(pdMS_TO_TICKS(60000));
+    }
+}
 }  // namespace
 
 extern "C" void app_main(void) {
+    ConfigureLocalTimezone();
+
     esp_err_t err = nvs_flash_init();
     if (err == ESP_ERR_NVS_NO_FREE_PAGES || err == ESP_ERR_NVS_NEW_VERSION_FOUND) {
         ESP_ERROR_CHECK(nvs_flash_erase());
@@ -99,7 +180,11 @@ extern "C" void app_main(void) {
     ui.ShowBoot("正在启动");
     notes.Load();
     buttons.Init();
+#if CONFIG_WEC_PRODUCT_DISK
+    StartUsbProductDisk();
+#endif
     serial_config.Start();
+    xTaskCreate(EnvironmentTask, "environment", 4096, nullptr, 2, nullptr);
 
     wifi.LoadCredentials();
     if (!wifi.HasConfiguredSsid()) {
@@ -122,8 +207,10 @@ extern "C" void app_main(void) {
         }
     }
     ui.ShowWifi(wifi.ConfiguredSsid().c_str(), wifi.IpAddress().c_str());
+    ui.SetNetworkStatus(true);
     vTaskDelay(pdMS_TO_TICKS(700));
 
     xTaskCreate(BotTask, "wechat_bot", 12288, nullptr, 5, nullptr);
+    xTaskCreate(TimeSyncTask, "time_sync", 4096, nullptr, 2, nullptr);
     xTaskCreate(ScreensaverTask, "screensaver", 4096, nullptr, 2, nullptr);
 }

@@ -4,6 +4,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <ctime>
 #include <atomic>
 #include <string>
 
@@ -17,8 +18,14 @@
 #include <nvs.h>
 #include <sdkconfig.h>
 
-#if CONFIG_USJ_ENABLE_USB_SERIAL_JTAG || CONFIG_ESP_CONSOLE_USB_SERIAL_JTAG || \
-    CONFIG_ESP_CONSOLE_SECONDARY_USB_SERIAL_JTAG
+#if CONFIG_TINYUSB_CDC_ENABLED
+#define WEC_HAS_TINYUSB_CDC 1
+#include <tinyusb_cdc_acm.h>
+#endif
+
+#if !CONFIG_TINYUSB_CDC_ENABLED && \
+    (CONFIG_USJ_ENABLE_USB_SERIAL_JTAG || CONFIG_ESP_CONSOLE_USB_SERIAL_JTAG || \
+     CONFIG_ESP_CONSOLE_SECONDARY_USB_SERIAL_JTAG)
 #define WEC_HAS_USB_SERIAL_JTAG 1
 #include <driver/usb_serial_jtag.h>
 #endif
@@ -123,43 +130,103 @@ bool SaveConfigString(const char* key, const std::string& value) {
     return err == ESP_OK;
 }
 
+#if WEC_HAS_TINYUSB_CDC
+void WriteCdcBytes(const uint8_t* data, size_t size) {
+    if (!tinyusb_cdcacm_initialized(TINYUSB_CDC_ACM_0) || !data || size == 0) {
+        return;
+    }
+
+    constexpr size_t kChunkSize = 128;
+    size_t offset = 0;
+    while (offset < size) {
+        const size_t remaining = size - offset;
+        const size_t requested = remaining < kChunkSize ? remaining : kChunkSize;
+        const size_t queued =
+            tinyusb_cdcacm_write_queue(TINYUSB_CDC_ACM_0, data + offset, requested);
+        if (queued == 0) {
+            tinyusb_cdcacm_write_flush(TINYUSB_CDC_ACM_0, pdMS_TO_TICKS(20));
+            vTaskDelay(pdMS_TO_TICKS(1));
+            continue;
+        }
+        offset += queued;
+        tinyusb_cdcacm_write_flush(TINYUSB_CDC_ACM_0, pdMS_TO_TICKS(20));
+    }
+}
+#endif
+
+void WriteResponseLine(const std::string& line) {
+    std::printf("%s\n", line.c_str());
+    std::fflush(stdout);
+#if WEC_HAS_TINYUSB_CDC
+    if (tinyusb_cdcacm_initialized(TINYUSB_CDC_ACM_0)) {
+        WriteCdcBytes(reinterpret_cast<const uint8_t*>(line.data()), line.size());
+        static constexpr uint8_t newline[] = "\n";
+        WriteCdcBytes(newline, 1);
+    }
+#endif
+}
+
 void PrintJson(cJSON* root) {
     char* raw = cJSON_PrintUnformatted(root);
     if (raw) {
-        std::printf("WEC:%s\n", raw);
-        std::fflush(stdout);
+        std::string line = "WEC:";
+        line += raw;
+        WriteResponseLine(line);
         cJSON_free(raw);
+    }
+}
+
+void AddLocalTime(cJSON* root) {
+    std::time_t now = 0;
+    std::time(&now);
+    cJSON_AddNumberToObject(root, "device_epoch", static_cast<double>(now));
+
+    std::tm tm = {};
+    localtime_r(&now, &tm);
+    if (tm.tm_year >= 120) {
+        char buf[32];
+        std::strftime(buf, sizeof(buf), "%Y-%m-%d %H:%M:%S", &tm);
+        cJSON_AddStringToObject(root, "device_time", buf);
+    } else {
+        cJSON_AddStringToObject(root, "device_time", "");
     }
 }
 
 void PrintGpioScanEvent(const char* stage, int gpio = -1, int level = -1, int elapsed_ms = -1,
                         const char* message = nullptr) {
-    std::printf("WEC:{\"ok\":true,\"type\":\"gpio_scan\",\"stage\":\"%s\"",
-                stage ? stage : "event");
+    char buffer[512];
+    int used = std::snprintf(buffer, sizeof(buffer),
+                             "WEC:{\"ok\":true,\"type\":\"gpio_scan\",\"stage\":\"%s\"",
+                             stage ? stage : "event");
     if (gpio >= 0) {
-        std::printf(",\"gpio\":%d", gpio);
+        used += std::snprintf(buffer + used, sizeof(buffer) - used, ",\"gpio\":%d", gpio);
     }
     if (level >= 0) {
-        std::printf(",\"level\":%d", level);
+        used += std::snprintf(buffer + used, sizeof(buffer) - used, ",\"level\":%d", level);
     }
     if (elapsed_ms >= 0) {
-        std::printf(",\"elapsed_ms\":%d", elapsed_ms);
+        used += std::snprintf(buffer + used, sizeof(buffer) - used, ",\"elapsed_ms\":%d",
+                              elapsed_ms);
     }
     if (message) {
-        std::printf(",\"message\":\"%s\"", message);
+        used += std::snprintf(buffer + used, sizeof(buffer) - used, ",\"message\":\"%s\"",
+                              message);
     }
-    std::printf("}\n");
-    std::fflush(stdout);
+    std::snprintf(buffer + used, sizeof(buffer) - used, "}");
+    WriteResponseLine(buffer);
 }
 
 void PrintGpioLevels() {
-    std::printf("WEC:{\"ok\":true,\"type\":\"gpio_levels\",\"levels\":{");
+    std::string line = "WEC:{\"ok\":true,\"type\":\"gpio_levels\",\"levels\":{";
     for (size_t i = 0; i < sizeof(kGpioProbePins) / sizeof(kGpioProbePins[0]); ++i) {
         const int gpio = static_cast<int>(kGpioProbePins[i]);
-        std::printf("%s\"%d\":%d", i == 0 ? "" : ",", gpio, gpio_get_level(kGpioProbePins[i]));
+        char item[24];
+        std::snprintf(item, sizeof(item), "%s\"%d\":%d", i == 0 ? "" : ",", gpio,
+                      gpio_get_level(kGpioProbePins[i]));
+        line += item;
     }
-    std::printf("}}\n");
-    std::fflush(stdout);
+    line += "}}";
+    WriteResponseLine(line);
 }
 
 void GpioScanTask(void* arg) {
@@ -265,6 +332,11 @@ void SerialConfig::Run() {
 
 bool SerialConfig::InstallChannels() {
     bool installed = false;
+#if WEC_HAS_TINYUSB_CDC
+    if (tinyusb_cdcacm_initialized(TINYUSB_CDC_ACM_0)) {
+        installed = true;
+    }
+#endif
 #if WEC_HAS_USB_SERIAL_JTAG
     usb_serial_jtag_driver_config_t cfg = {};
     cfg.tx_buffer_size = 256;
@@ -298,6 +370,19 @@ int SerialConfig::ReadByte(uint8_t* out, int timeout_ms) {
         per_channel = 10;
     }
 
+#if WEC_HAS_TINYUSB_CDC
+    const int64_t deadline_us = esp_timer_get_time() + static_cast<int64_t>(per_channel) * 1000;
+    while (esp_timer_get_time() < deadline_us) {
+        if (tinyusb_cdcacm_initialized(TINYUSB_CDC_ACM_0)) {
+            size_t rx_size = 0;
+            esp_err_t err = tinyusb_cdcacm_read(TINYUSB_CDC_ACM_0, out, 1, &rx_size);
+            if (err == ESP_OK && rx_size > 0) {
+                return static_cast<int>(rx_size);
+            }
+        }
+        vTaskDelay(pdMS_TO_TICKS(10));
+    }
+#endif
 #if WEC_HAS_USB_SERIAL_JTAG
     int n = usb_serial_jtag_read_bytes(out, 1, pdMS_TO_TICKS(per_channel));
     if (n > 0) {
@@ -332,6 +417,7 @@ void SerialConfig::HandleLine(const char* line) {
         cJSON_AddStringToObject(root, "name", "WeClawBot");
         cJSON_AddStringToObject(root, "version", WEC_FIRMWARE_VERSION);
         cJSON_AddStringToObject(root, "chip", "ESP32-S3");
+        AddLocalTime(root);
         PrintJson(root);
         cJSON_Delete(root);
         return;
@@ -481,6 +567,7 @@ void SerialConfig::SendStatus() {
     cJSON_AddStringToObject(root, "name", "WeClawBot");
     cJSON_AddStringToObject(root, "version", WEC_FIRMWARE_VERSION);
     cJSON_AddStringToObject(root, "board", "Waveshare ESP32-S3-RLCD-4.2");
+    AddLocalTime(root);
     cJSON_AddBoolToObject(root, "wifi_configured", wifi_.HasConfiguredSsid());
     cJSON_AddStringToObject(root, "wifi_ssid", wifi_.ConfiguredSsid().c_str());
     cJSON_AddBoolToObject(root, "wifi_connected", wifi_.Connected());

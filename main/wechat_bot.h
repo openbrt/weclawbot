@@ -22,6 +22,7 @@ public:
     const char* LoginStateText() const;
     int QrSecondsLeft() const { return qr_seconds_left_; }
     int64_t LastActivity() const { return last_activity_; }
+    void RetryTimeSync();
     bool CurateLoopbackText(const char* text);
     bool CurateLoopbackImage(const char* url);
 
@@ -39,6 +40,7 @@ private:
     struct HttpResponse {
         std::string body;
         std::string encrypted_param;
+        std::string date_header;
         bool overflow = false;
         esp_err_t error = ESP_OK;
         int status = -1;
@@ -60,6 +62,12 @@ private:
     bool PollQrStatus();
     bool DoGetUpdates();
     void RunGetUpdatesLoop();
+    bool IsIlinkSessionInvalid(int http_status, int ret, int errcode, const cJSON* payload) const;
+    void InvalidateIlinkSession(const char* operation,
+                                int http_status,
+                                int ret,
+                                int errcode,
+                                const cJSON* payload);
     void DispatchItem(const cJSON* item, const char* from_user);
     void HandleText(const char* from_user, const char* text, bool allow_commands = true);
     void HandleImage(const cJSON* image_item, const char* from_user);
@@ -80,7 +88,7 @@ private:
     bool SendTextMessage(const char* to_user, const std::string& text);
     bool SendPreviewImageMessage(const char* to_user, const std::string& preview_url);
 
-    std::string HttpGet(const std::string& url);
+    std::string HttpGet(const std::string& url, std::string* date_header = nullptr);
     HttpResponse HttpPost(const std::string& url,
                           const std::string& body,
                           bool with_auth,

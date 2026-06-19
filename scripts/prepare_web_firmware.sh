@@ -19,6 +19,7 @@ for file in "$BOOTLOADER" "$APP" "$PARTITIONS" "$OTADATA"; do
 done
 
 mkdir -p "$OUT_DIR"
+rm -f "$OUT_DIR/weclawbot-esp32s3-rlcd42.bin"
 
 cp "$BOOTLOADER" "$OUT_DIR/bootloader.bin"
 cp "$PARTITIONS" "$OUT_DIR/partition-table.bin"
