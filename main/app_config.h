@@ -3,7 +3,7 @@
 #include <driver/gpio.h>
 #include <driver/spi_common.h>
 
-#define WEC_FIRMWARE_VERSION "0.1.46"
+#define WEC_FIRMWARE_VERSION "0.1.47"
 #define WEC_PRODUCT_URL "https://weclawbot.link"
 #define WEC_PRODUCT_HOST "weclawbot.link"
 

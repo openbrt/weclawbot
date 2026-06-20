@@ -36,7 +36,7 @@ repository.
 - USB: native ESP32-S3 USB Serial/JTAG
 - Flash layout: 16 MB, DIO, 80 MHz
 
-Button behavior in firmware `0.1.46`:
+Button behavior in firmware `0.1.47`:
 
 | Button | Short press | Long press |
 | --- | --- | --- |

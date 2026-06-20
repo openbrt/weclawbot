@@ -1,8 +1,8 @@
 {
   "schema": "https://weclawbot.link/schemas/firmware-contract.v1",
   "firmware": {
-    "version": "0.1.46",
-    "release_url": "https://github.com/openbrt/weclawbot/releases/tag/v0.1.46",
+    "version": "0.1.47",
+    "release_url": "https://github.com/openbrt/weclawbot/releases/tag/v0.1.47",
     "source_url": "https://github.com/openbrt/weclawbot"
   },
   "product": {
@@ -34,6 +34,7 @@
     "qr_expiry_ms": 180000,
     "qr_poll_ms": 2000,
     "auto_page_sec": 12,
+    "carousel_page_sec": 12,
     "screensaver_idle_sec": 600,
     "screensaver_return_sec": 20
   },
@@ -44,6 +45,7 @@
     "waiting_scan_footer": "等待微信扫码",
     "qr_footer": "微信扫码连接",
     "thinking_footer": "红方块思考中",
+    "dashboard_carousel": ["calendar", "photo", "note"],
     "platform_hint": "文档、图片和其他文件需要开通 WeClawBot 平台服务",
     "show_status_icons": true,
     "status_icons": ["wifi", "plug"]
