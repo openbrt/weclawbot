@@ -1125,7 +1125,7 @@ void Ui::DrawCalendarLocked(const std::tm& now_tm) {
             RectObj(lv_screen_active(), x + 1, y + 1, cell_w - 2, cell_h - 2,
                     Black(), Black(), 0, 0);
         }
-        char day_text[4];
+        char day_text[12];
         std::snprintf(day_text, sizeof(day_text), "%d", day);
         auto* label = LabelLocked(lv_screen_active(), day_text, &font_puhui_16_4,
                                   is_today ? White() : Black(), x, y + 1, cell_w);
