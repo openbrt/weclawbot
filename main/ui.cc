@@ -582,6 +582,7 @@ void Ui::ShowIdlePhoto(const Note& photo) {
         if (RenderBitmapLocked(photo.screen_frames[0], photo.screen_frame_width,
                                photo.screen_frame_height, photo.screen_frame_stride,
                                x, y)) {
+            photo_view_active_ = true;
             display_.Unlock();
             return;
         }
@@ -1156,6 +1157,7 @@ void Ui::DrawQrPanelLocked(const char* status, int seconds_left) {
 void Ui::ClearLocked() {
     note_view_active_ = false;
     calendar_home_active_ = false;
+    photo_view_active_ = false;
     if (red_block_pet_) {
         RedBlockPetDestroy(red_block_pet_);
         red_block_pet_ = nullptr;
@@ -1219,9 +1221,11 @@ void Ui::ReleaseContentAssets() {
 
 void Ui::HeaderLocked(const char* left, const char* right) {
     header_detail_ = right ? right : "";
-    LabelLocked(lv_screen_active(), left, &font_puhui_14_1, Black(), 16, 10, 92);
+    auto* header_left_label = LabelLocked(lv_screen_active(), left, &font_puhui_14_1,
+                                          Black(), 16, 10, 116);
+    lv_label_set_long_mode(header_left_label, LV_LABEL_LONG_CLIP);
     header_right_label_ = LabelLocked(lv_screen_active(), "", &font_puhui_14_1,
-                                      Black(), 106, 10, 210);
+                                      Black(), 134, 10, 182);
     lv_obj_set_style_text_align(header_right_label_, LV_TEXT_ALIGN_RIGHT, 0);
     constexpr int kSignalX = 334;
     constexpr int kSignalBaseline = 27;
@@ -1245,6 +1249,19 @@ void Ui::HeaderLocked(const char* left, const char* right) {
     lv_obj_set_size(line, 368, 2);
     lv_obj_set_style_bg_color(line, Black(), 0);
     lv_obj_set_style_bg_opa(line, LV_OPA_COVER, 0);
+}
+
+UiDashboardView Ui::DashboardView() const {
+    if (note_view_active_) {
+        return UiDashboardView::kNote;
+    }
+    if (photo_view_active_) {
+        return UiDashboardView::kPhoto;
+    }
+    if (calendar_home_active_ && !qr_calendar_active_ && !calendar_thinking_) {
+        return UiDashboardView::kCalendar;
+    }
+    return UiDashboardView::kOther;
 }
 
 void Ui::FooterLocked(const char* text) {

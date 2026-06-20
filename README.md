@@ -15,6 +15,8 @@ WeClawBot turns a small reflective screen into a calm, always-on message surface
 - Send text, lists, reminders, or photos in WeChat and let the device show them
   as a desktop note, calendar page, or black-and-white photo frame.
 - Send corrections such as “修改为...” or “清屏” from WeChat.
+- After a new message is shown, rotate the calendar, optional photo frame, and
+  note pages at a calm interval instead of leaving a note permanently on screen.
 - Keep the fallback calendar, clock, indoor temperature, indoor humidity, Wi-Fi
   state, and plug/battery state visible when there is no active note.
 - Keep Wi-Fi, WeChat state, notes, and the configured curator endpoint across

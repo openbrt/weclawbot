@@ -49,13 +49,14 @@ config WEC_SCREENSAVER_RETURN_SEC
     range 5 300
 
 config WEC_AUTO_PAGE_SEC
-    int "Seconds between automatic note page turns"
+    int "Seconds between automatic desktop carousel transitions"
     default 12
     range 10 3600
     help
-        When the current sticky note has multiple pages, the firmware advances
-        to the next page automatically. Manual buttons remain available as
-        emergency controls but should not be part of normal use.
+        The connected desktop rotates calendar, black-and-white photo frame,
+        and the current sticky note. Multi-page notes advance one page at a
+        time during their turn. Manual buttons remain available as emergency
+        controls but should not be part of normal use.
 
 config WEC_PLATFORM_HINT
     string "Platform service hint for non-text messages"

@@ -56,9 +56,114 @@ void RenderCurrentOrEmpty() {
     }
 }
 
+enum class DashboardSlot {
+    kCalendar = 0,
+    kPhoto = 1,
+    kNote = 2,
+};
+
+bool DashboardSlotAvailable(DashboardSlot slot) {
+    switch (slot) {
+        case DashboardSlot::kCalendar:
+            return true;
+        case DashboardSlot::kPhoto:
+            return notes.HasIdlePhoto();
+        case DashboardSlot::kNote:
+            return !notes.Empty();
+    }
+    return false;
+}
+
+DashboardSlot DashboardSlotFromUi(UiDashboardView view) {
+    switch (view) {
+        case UiDashboardView::kPhoto:
+            return DashboardSlot::kPhoto;
+        case UiDashboardView::kNote:
+            return DashboardSlot::kNote;
+        case UiDashboardView::kCalendar:
+        case UiDashboardView::kOther:
+            return DashboardSlot::kCalendar;
+    }
+    return DashboardSlot::kCalendar;
+}
+
+DashboardSlot NextDashboardSlot(DashboardSlot current) {
+    for (int offset = 1; offset <= 3; ++offset) {
+        const auto candidate = static_cast<DashboardSlot>((static_cast<int>(current) + offset) % 3);
+        if (DashboardSlotAvailable(candidate)) {
+            return candidate;
+        }
+    }
+    return DashboardSlot::kCalendar;
+}
+
+const char* DashboardSlotName(DashboardSlot slot) {
+    switch (slot) {
+        case DashboardSlot::kCalendar:
+            return "calendar";
+        case DashboardSlot::kPhoto:
+            return "photo";
+        case DashboardSlot::kNote:
+            return "note";
+    }
+    return "calendar";
+}
+
+void ShowDashboardSlot(DashboardSlot slot) {
+    switch (slot) {
+        case DashboardSlot::kCalendar:
+            ui.ShowEmptyNotes();
+            return;
+        case DashboardSlot::kPhoto:
+            if (const Note* photo = notes.IdlePhoto()) {
+                ui.ShowIdlePhoto(*photo);
+                return;
+            }
+            ui.ShowEmptyNotes();
+            return;
+        case DashboardSlot::kNote:
+            if (!notes.Empty()) {
+                ui.ShowNotes(notes.All(), notes.CurrentIndex());
+                return;
+            }
+            ui.ShowEmptyNotes();
+            return;
+    }
+}
+
+void AdvanceDashboardCarousel() {
+    const UiDashboardView ui_view = ui.DashboardView();
+    if (ui_view == UiDashboardView::kNote && !notes.Empty() &&
+        ui.NotePage() + 1 < ui.NotePageCount()) {
+        if (ui.ShowNextNotePage(notes.All(), notes.CurrentIndex())) {
+            std::printf(
+                "WEC:{\"scope\":\"ui\",\"stage\":\"carousel_note_page\","
+                "\"page\":%u,\"page_count\":%u,\"interval_sec\":%u,"
+                "\"ok\":true,\"type\":\"event\"}\n",
+                static_cast<unsigned>(ui.NotePage() + 1),
+                static_cast<unsigned>(ui.NotePageCount()),
+                static_cast<unsigned>(CONFIG_WEC_AUTO_PAGE_SEC));
+            std::fflush(stdout);
+        }
+        return;
+    }
+
+    const DashboardSlot from = DashboardSlotFromUi(ui_view);
+    const DashboardSlot to = NextDashboardSlot(from);
+    ShowDashboardSlot(to);
+    std::printf(
+        "WEC:{\"scope\":\"ui\",\"stage\":\"carousel_advance\","
+        "\"from\":\"%s\",\"to\":\"%s\",\"interval_sec\":%u,"
+        "\"ok\":true,\"type\":\"event\"}\n",
+        DashboardSlotName(from), DashboardSlotName(to),
+        static_cast<unsigned>(CONFIG_WEC_AUTO_PAGE_SEC));
+    std::fflush(stdout);
+}
+
 void ScreensaverTask(void*) {
     int64_t last_screensaver_activity = 0;
-    int64_t last_note_page_turn = std::time(nullptr);
+    int64_t last_dashboard_turn = std::time(nullptr);
+    UiDashboardView last_dashboard_view = UiDashboardView::kOther;
     while (true) {
         const int64_t now = std::time(nullptr);
         const int64_t last = bot.LastActivity();
@@ -67,7 +172,8 @@ void ScreensaverTask(void*) {
             if (started > 0 && now >= started + CONFIG_WEC_SCREENSAVER_RETURN_SEC) {
                 ui.SetScreensaverActive(false);
                 RenderCurrentOrEmpty();
-                last_note_page_turn = now;
+                last_dashboard_turn = now;
+                last_dashboard_view = ui.DashboardView();
             }
         } else if (last > 0 && last != last_screensaver_activity &&
             now > last + CONFIG_WEC_SCREENSAVER_IDLE_SEC) {
@@ -77,19 +183,20 @@ void ScreensaverTask(void*) {
                 ui.ShowScreensaver(bot.Connected(), notes.Count());
             }
             last_screensaver_activity = last;
-            last_note_page_turn = now;
-        } else if (ui.NoteViewActive() && notes.Count() > 0 &&
-                   now >= last_note_page_turn + CONFIG_WEC_AUTO_PAGE_SEC) {
-            if (ui.ShowNextNotePage(notes.All(), notes.CurrentIndex())) {
-                std::printf(
-                    "WEC:{\"scope\":\"ui\",\"stage\":\"auto_page_turn\","
-                    "\"page\":%u,\"page_count\":%u,\"interval_sec\":%u,"
-                    "\"ok\":true,\"type\":\"event\"}\n",
-                    static_cast<unsigned>(ui.NotePage() + 1),
-                    static_cast<unsigned>(ui.NotePageCount()),
-                    static_cast<unsigned>(CONFIG_WEC_AUTO_PAGE_SEC));
+            last_dashboard_turn = now;
+            last_dashboard_view = ui.DashboardView();
+        } else {
+            const UiDashboardView dashboard_view = ui.DashboardView();
+            if (dashboard_view != last_dashboard_view) {
+                last_dashboard_view = dashboard_view;
+                last_dashboard_turn = now;
+            } else if (bot.Connected() && dashboard_view != UiDashboardView::kOther &&
+                       (notes.Count() > 0 || notes.HasIdlePhoto()) &&
+                       now >= last_dashboard_turn + CONFIG_WEC_AUTO_PAGE_SEC) {
+                AdvanceDashboardCarousel();
+                last_dashboard_view = ui.DashboardView();
+                last_dashboard_turn = now;
             }
-            last_note_page_turn = now;
         }
         vTaskDelay(pdMS_TO_TICKS(1000));
     }

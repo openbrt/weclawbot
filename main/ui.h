@@ -9,6 +9,13 @@
 #include "note_store.h"
 #include "rlcd_display.h"
 
+enum class UiDashboardView {
+    kOther,
+    kCalendar,
+    kPhoto,
+    kNote,
+};
+
 class Ui {
 public:
     explicit Ui(RlcdDisplay& display) : display_(display) {}
@@ -36,6 +43,7 @@ public:
 
     bool ScreensaverActive() const { return screensaver_active_; }
     bool NoteViewActive() const { return note_view_active_; }
+    UiDashboardView DashboardView() const;
     size_t NotePage() const { return note_page_; }
     size_t NotePageCount() const { return note_page_count_; }
     int64_t ScreensaverStartedAt() const { return screensaver_started_at_; }
@@ -77,6 +85,7 @@ private:
     bool screensaver_active_ = false;
     bool calendar_home_active_ = false;
     bool note_view_active_ = false;
+    bool photo_view_active_ = false;
     bool environment_valid_ = false;
     bool network_connected_ = false;
     bool battery_present_ = false;
