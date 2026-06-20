@@ -5,7 +5,7 @@ display based on the Waveshare ESP32-S3-RLCD-4.2 board.
 
 [中文说明](README.zh-CN.md) | [Live website](https://weclawbot.link/) | [Install and configure](https://openbrt.github.io/weclawbot/web/)
 
-![WeClawBot running on real hardware](docs/assets/weclawbot-device-hero.png)
+![WeClawBot running on real hardware](docs/assets/weclawbot-device-hero-v0.1.45.png)
 
 ## What It Does
 

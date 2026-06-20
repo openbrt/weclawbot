@@ -1,0 +1,99 @@
+name: Release Firmware
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Release version, for example 0.1.45"
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Resolve version
+        id: meta
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "${GITHUB_REF_TYPE}" == "tag" ]]; then
+            tag="${GITHUB_REF_NAME}"
+            version="${tag#v}"
+          else
+            version="${{ inputs.version }}"
+            tag="v${version}"
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            if ! git rev-parse --verify --quiet "refs/tags/${tag}" >/dev/null; then
+              git tag "${tag}" "${GITHUB_SHA}"
+              git push origin "${tag}"
+            fi
+          fi
+          echo "tag=${tag}" >> "$GITHUB_OUTPUT"
+          echo "version=${version}" >> "$GITHUB_OUTPUT"
+
+      - name: Build firmware
+        uses: espressif/esp-idf-ci-action@v1
+        with:
+          esp_idf_version: v5.5.2
+          target: esp32s3
+          command: |
+            idf.py -B build build
+            scripts/prepare_web_firmware.sh
+
+      - name: Package release assets
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p dist
+          cp web/manifest.json dist/manifest.json
+          cp web/firmware/bootloader.bin dist/weclawbot-${{ steps.meta.outputs.version }}-bootloader.bin
+          cp web/firmware/partition-table.bin dist/weclawbot-${{ steps.meta.outputs.version }}-partition-table.bin
+          cp web/firmware/ota_data_initial.bin dist/weclawbot-${{ steps.meta.outputs.version }}-ota-data-initial.bin
+          cp web/firmware/weclawbot.bin dist/weclawbot-${{ steps.meta.outputs.version }}.bin
+          (cd web && zip -r ../dist/weclawbot-${{ steps.meta.outputs.version }}-web-installer.zip .)
+          cat > dist/release-notes.md <<'NOTES'
+          Public WeClawBot firmware build generated from this tag.
+
+          Install and configure:
+
+          https://openbrt.github.io/weclawbot/web/
+
+          Live product experience:
+
+          https://weclawbot.link/
+          NOTES
+
+      - name: Upload workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: weclawbot-${{ steps.meta.outputs.version }}-firmware
+          path: dist/*
+
+      - name: Publish GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          tag="${{ steps.meta.outputs.tag }}"
+          version="${{ steps.meta.outputs.version }}"
+          title="WeClawBot Firmware v${version}"
+          if gh release view "$tag" >/dev/null 2>&1; then
+            gh release upload "$tag" dist/* --clobber
+            gh release edit "$tag" --title "$title" --notes-file dist/release-notes.md --latest
+          else
+            gh release create "$tag" dist/* --title "$title" --notes-file dist/release-notes.md --latest
+          fi
