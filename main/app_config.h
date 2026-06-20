@@ -3,9 +3,19 @@
 #include <driver/gpio.h>
 #include <driver/spi_common.h>
 
-#define WEC_FIRMWARE_VERSION "0.1.45"
+#define WEC_FIRMWARE_VERSION "0.1.46"
 #define WEC_PRODUCT_URL "https://weclawbot.link"
 #define WEC_PRODUCT_HOST "weclawbot.link"
+
+#ifndef CONFIG_WEC_DEVELOPMENT_BUILD
+#define CONFIG_WEC_DEVELOPMENT_BUILD 0
+#endif
+
+#if CONFIG_WEC_DEVELOPMENT_BUILD
+#define WEC_SCREEN_TITLE "微笺（开发版）"
+#else
+#define WEC_SCREEN_TITLE "微笺屏"
+#endif
 
 #define WEC_I2C_HOST I2C_NUM_0
 #define WEC_I2C_SDA_PIN GPIO_NUM_13

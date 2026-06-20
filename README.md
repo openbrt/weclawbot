@@ -34,13 +34,16 @@ repository.
 - USB: native ESP32-S3 USB Serial/JTAG
 - Flash layout: 16 MB, DIO, 80 MHz
 
-Button behavior in firmware `0.1.45`:
+Button behavior in firmware `0.1.46`:
 
 | Button | Short press | Long press |
 | --- | --- | --- |
 | Left button | Previous page | Clear text notes after 3 seconds |
 | Right button | Next page | Clear text, photo, and WeChat login after 5 seconds |
 | Middle power button | Reserved by hardware | Power on/off |
+
+Public firmware shows `微笺屏` in the screen header. Local development builds can
+enable `CONFIG_WEC_DEVELOPMENT_BUILD` to show `微笺（开发版）` instead.
 
 ## Install
 

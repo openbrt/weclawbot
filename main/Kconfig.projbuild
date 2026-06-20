@@ -65,6 +65,13 @@ config WEC_REPLY_ON_TEXT
     bool "Reply to WeChat when a text note is posted"
     default n
 
+config WEC_DEVELOPMENT_BUILD
+    bool "Mark firmware as a local development build"
+    default n
+    help
+        Show the development label on the device header. Public firmware
+        releases should keep this disabled.
+
 config WEC_PRODUCT_DISK
     bool "Expose WeClawBot USB product disk"
     default n

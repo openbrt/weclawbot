@@ -287,7 +287,7 @@ bool AllLinesFit(const std::vector<std::string>& lines, int max_units) {
 void Ui::ShowBoot(const char* line) {
     display_.Lock();
     ClearLocked();
-    HeaderLocked("WeClawBot", "启动中");
+    HeaderLocked(WEC_SCREEN_TITLE, "启动中");
 
     auto* title = LabelLocked(lv_screen_active(), "自动进化的微笺屏",
                               &font_puhui_30_4, Black(), 34, 82, 332);
@@ -303,7 +303,7 @@ void Ui::ShowBoot(const char* line) {
 void Ui::ShowWifi(const char* ssid, const char* status) {
     display_.Lock();
     ClearLocked();
-    HeaderLocked("WeClawBot", "Wi-Fi");
+    HeaderLocked(WEC_SCREEN_TITLE, "Wi-Fi");
 
     LabelLocked(lv_screen_active(), "连接无线网络", &font_puhui_30_4, Black(), 36, 74, 328);
 
@@ -320,7 +320,7 @@ void Ui::ShowUsbConfig(const char* status) {
     screensaver_active_ = false;
     display_.Lock();
     ClearLocked();
-    HeaderLocked("WeClawBot", "USB 配置");
+    HeaderLocked(WEC_SCREEN_TITLE, "USB 配置");
 
     auto* title = LabelLocked(lv_screen_active(), "需要配置 Wi-Fi", &font_puhui_30_4, Black(), 34, 66, 332);
     lv_obj_set_style_text_align(title, LV_TEXT_ALIGN_CENTER, 0);
@@ -421,7 +421,7 @@ void Ui::ShowQr(const char* qr_url, int seconds_left) {
     qr_status_ = "等待扫码";
     calendar_footer_ = QrFooterText("微信扫码连接", seconds_left);
 
-    HeaderLocked("微笺屏", "");
+    HeaderLocked(WEC_SCREEN_TITLE, "");
 
     home_time_shadow_label_ = LabelLocked(lv_screen_active(), "", &font_puhui_30_4,
                                           Black(), 27, 42, 160);
@@ -479,7 +479,7 @@ void Ui::ShowIdleHome(const char* status, const char* footer) {
     screensaver_active_ = false;
     display_.Lock();
     ClearLocked();
-    HeaderLocked("WeClawBot", "微笺");
+    HeaderLocked(WEC_SCREEN_TITLE, "微笺");
 
     auto* title = LabelLocked(lv_screen_active(), status, &font_puhui_30_4, Black(), 38, 74, 324);
     lv_obj_set_style_text_align(title, LV_TEXT_ALIGN_CENTER, 0);
@@ -595,7 +595,7 @@ void Ui::ShowPlatformPrompt(const char* kind, const char* file_name) {
     screensaver_active_ = false;
     display_.Lock();
     ClearLocked();
-    HeaderLocked("WeClawBot", "平台服务");
+    HeaderLocked(WEC_SCREEN_TITLE, "平台服务");
 
     LabelLocked(lv_screen_active(), "已收到非文本消息", &font_puhui_30_4, Black(), 34, 62, 332);
 
@@ -626,7 +626,7 @@ void Ui::ShowError(const char* title, const char* detail) {
     screensaver_active_ = false;
     display_.Lock();
     ClearLocked();
-    HeaderLocked("WeClawBot", "错误");
+    HeaderLocked(WEC_SCREEN_TITLE, "错误");
     LabelLocked(lv_screen_active(), title, &font_puhui_30_4, Black(), 34, 72, 332);
     LabelLocked(lv_screen_active(), detail, &font_puhui_20_4, Black(), 34, 132, 332);
     FooterLocked("请查看串口日志");
@@ -719,7 +719,7 @@ bool Ui::RenderNotePageLocked(const Note& note, size_t page, size_t* page_count)
     } else {
         std::snprintf(page_label, sizeof(page_label), "%s", ClockString().c_str());
     }
-    HeaderLocked("微笺屏", page_label);
+    HeaderLocked(WEC_SCREEN_TITLE, page_label);
 
     const auto& lines = pages[page];
     if (count == 1 && lines.size() == 1 && VisualLineUnits(lines.front()) <= 290) {
@@ -786,7 +786,7 @@ bool Ui::RenderContentBitmapLocked(const Note& note, size_t page) {
         std::snprintf(page_label, sizeof(page_label), "%s", ClockString().c_str());
     }
 
-    HeaderLocked("微笺屏", page_label);
+    HeaderLocked(WEC_SCREEN_TITLE, page_label);
     const int x = WEC_CONTENT_BITMAP_X +
                   (WEC_CONTENT_BITMAP_WIDTH - note.screen_frame_width) / 2;
     const int y = WEC_CONTENT_BITMAP_Y +
@@ -891,7 +891,7 @@ void Ui::ShowCalendarHomeLocked(const char* header_detail, const char* footer, b
     calendar_thinking_ = thinking;
     calendar_footer_ = footer ? footer : "微信发送文字、清单或照片即可上屏";
 
-    HeaderLocked("微笺屏", header_detail ? header_detail : "日历");
+    HeaderLocked(WEC_SCREEN_TITLE, header_detail ? header_detail : "日历");
 
     home_time_shadow_label_ = LabelLocked(lv_screen_active(), "", &font_puhui_30_4,
                                           Black(), 27, 42, 160);
