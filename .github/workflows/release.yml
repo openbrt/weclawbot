@@ -17,6 +17,8 @@ permissions:
 jobs:
   release:
     runs-on: ubuntu-latest
+    env:
+      OFFICIAL_SITE_DISPATCH_TOKEN: ${{ secrets.OFFICIAL_SITE_DISPATCH_TOKEN }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -100,9 +102,9 @@ jobs:
           fi
 
       - name: Notify official site pipeline
-        if: ${{ secrets.OFFICIAL_SITE_DISPATCH_TOKEN != '' }}
+        if: ${{ env.OFFICIAL_SITE_DISPATCH_TOKEN != '' }}
         env:
-          DISPATCH_TOKEN: ${{ secrets.OFFICIAL_SITE_DISPATCH_TOKEN }}
+          DISPATCH_TOKEN: ${{ env.OFFICIAL_SITE_DISPATCH_TOKEN }}
           VERSION: ${{ steps.meta.outputs.version }}
           TAG: ${{ steps.meta.outputs.tag }}
         shell: bash
