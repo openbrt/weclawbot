@@ -1,0 +1,93 @@
+{
+  "schema": "https://weclawbot.link/schemas/firmware-contract.v1",
+  "firmware": {
+    "version": "0.1.46",
+    "release_url": "https://github.com/openbrt/weclawbot/releases/tag/v0.1.46",
+    "source_url": "https://github.com/openbrt/weclawbot"
+  },
+  "product": {
+    "name": "WeClawBot",
+    "screen_title": "微笺屏",
+    "development_screen_title": "微笺（开发版）",
+    "homepage": "https://weclawbot.link"
+  },
+  "device": {
+    "profile_id": "waveshare-esp32-s3-rlcd-4.2",
+    "family": "esp32-display",
+    "board": "Waveshare ESP32-S3-RLCD-4.2",
+    "chip_family": "ESP32-S3"
+  },
+  "display": {
+    "kind": "rlcd",
+    "width": 400,
+    "height": 300,
+    "color_mode": "mono1",
+    "diagonal_inch": 4.2,
+    "content_rect": {
+      "x": 16,
+      "y": 42,
+      "width": 368,
+      "height": 206
+    }
+  },
+  "timing": {
+    "qr_expiry_ms": 180000,
+    "qr_poll_ms": 2000,
+    "auto_page_sec": 12,
+    "screensaver_idle_sec": 600,
+    "screensaver_return_sec": 20
+  },
+  "ui": {
+    "default_footer": "微信端可修改、清除或者替换",
+    "idle_footer": "微信发送文字、清单或照片即可上屏",
+    "connected_idle_footer": "微信已连接，等待新留言",
+    "waiting_scan_footer": "等待微信扫码",
+    "qr_footer": "微信扫码连接",
+    "thinking_footer": "红方块思考中",
+    "platform_hint": "文档、图片和其他文件需要开通 WeClawBot 平台服务",
+    "show_status_icons": true,
+    "status_icons": ["wifi", "plug"]
+  },
+  "buttons": [
+    {
+      "id": "left",
+      "label": "左键",
+      "model_hotspot": "Hotspot_Button_KEY",
+      "model_action": "",
+      "short_command": "prev",
+      "short_text": "短按：上一屏",
+      "long_command": "clear-text",
+      "long_press_ms": 3000,
+      "long_text": "长按 3 秒：清除文字微笺，保留照片和微信连接"
+    },
+    {
+      "id": "right",
+      "label": "右键",
+      "model_hotspot": "Hotspot_Button_BOOT",
+      "model_action": "Action_Button_KEY_Press",
+      "short_command": "next",
+      "short_text": "短按：下一屏",
+      "long_command": "full-clear",
+      "long_press_ms": 5000,
+      "long_text": "长按 5 秒：全清文字、照片和微信连接，回到扫码"
+    },
+    {
+      "id": "middle",
+      "label": "中键",
+      "model_hotspot": "Hotspot_Button_PWR",
+      "model_action": "Action_Button_PWR_Press",
+      "short_command": "",
+      "short_text": "短按：暂未使用",
+      "long_command": "power-toggle",
+      "long_press_ms": 3000,
+      "long_text": "长按 3 秒：关机或开机"
+    }
+  ],
+  "commands": {
+    "prev": "上一屏",
+    "next": "下一屏",
+    "clear-text": "清除文字微笺",
+    "full-clear": "全清并返回扫码",
+    "power-toggle": "开机或关机"
+  }
+}
