@@ -4,7 +4,7 @@
 
 [English README](README.md) | [官网体验](https://weclawbot.link/) | [安装和配置页面](https://openbrt.github.io/weclawbot/web/)
 
-![WeClawBot 真机效果](docs/assets/weclawbot-device-hero-v0.1.45.png)
+![WeClawBot 真机效果](docs/assets/weclawbot-device-hero-v0.1.46.png)
 
 ## 这是什么
 
