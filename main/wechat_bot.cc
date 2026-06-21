@@ -488,10 +488,21 @@ bool IsHelpCommand(const std::string& input) {
            input == "配置" || input == "怎么配置";
 }
 
+bool IsClearPhotoCommand(const std::string& input) {
+    return input == "/clear photo" || input == "/clearphoto" ||
+           input == "/clear image" || input == "/clearimage" ||
+           input == "清除照片" || input == "清空照片" ||
+           input == "删除照片" || input == "移除照片" ||
+           input == "清除图片" || input == "清空图片" ||
+           input == "删除图片" || input == "移除图片" ||
+           input == "清除相框" || input == "清空相框" ||
+           input == "清除照片屏" || input == "清空照片屏";
+}
+
 std::string HelpReply() {
     return std::string("WeClawBot 入口：") + WEC_PRODUCT_URL +
            "\n\n也可以直接把设备 USB-C 连到电脑，打开 WECLAWBOT U 盘里的安装页或配置页。"
-           "\n常用命令：/next 下一页，/prev 上一页，/clear 清除当前微笺，/clear all 全清。";
+           "\n常用命令：/next 下一页，/prev 上一页，/clear 清除当前微笺，“清除照片”清除照片屏，/clear all 全清。";
 }
 
 std::string ExtractReplacementText(const char* text) {
@@ -1326,6 +1337,15 @@ void WechatBot::HandleText(const char* from_user, const char* text, bool allow_c
         }
         return;
     }
+    if (allow_commands && IsClearPhotoCommand(command)) {
+        EmitEventLog(NewEventLog("command", "clear_idle_photo"));
+        notes_.ClearIdlePhoto();
+        RenderCurrentOrEmpty();
+        if (from_user && from_user[0] != '\0') {
+            SendTextMessage(from_user, "已清除照片屏。日历和留言会继续轮播。");
+        }
+        return;
+    }
     if (allow_commands && command == "/clear") {
         EmitEventLog(NewEventLog("command", "clear_current"));
         notes_.ClearCurrent();
@@ -1873,6 +1893,24 @@ bool WechatBot::ApplyCuratorDecision(const char* from_user, std::string response
         if (inner) cJSON_Delete(inner);
         cJSON_Delete(root);
         EmitHeapLog("curator", "after_decision_cleanup");
+        if (!recipient.empty()) {
+            SendTextMessage(recipient.c_str(), reply_to_send);
+        }
+        return true;
+    }
+
+    if (std::strcmp(action, "clear_idle_photo") == 0 ||
+        std::strcmp(action, "clear_photo") == 0) {
+        std::string reply = JsonString(decision, "user_reply");
+        notes_.ClearIdlePhoto();
+        RenderCurrentOrEmpty();
+        if (reply.empty()) {
+            reply = "已清除照片屏。日历和留言会继续轮播。";
+        }
+        reply_to_send = reply;
+        if (inner) cJSON_Delete(inner);
+        cJSON_Delete(root);
+        EmitHeapLog("curator", "after_idle_photo_clear");
         if (!recipient.empty()) {
             SendTextMessage(recipient.c_str(), reply_to_send);
         }
