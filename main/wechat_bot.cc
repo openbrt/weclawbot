@@ -1757,7 +1757,7 @@ bool WechatBot::ApplyCuratorDecision(const char* from_user, std::string response
                                       screen_frame_stride);
         RenderCurrentOrEmpty();
         if (reply.empty()) {
-            reply = "已设为无微笺时的黑白相框。清空当前留言后会显示这张照片。";
+            reply = "已设为照片屏，会随日历、留言一起轮播显示。继续发送照片可替换照片屏。";
         }
         reply_to_send = StripPreviewUrlFromReply(reply);
         preview_url_to_send = preview_url;
