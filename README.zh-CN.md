@@ -113,6 +113,11 @@ weclawbotctl unbind --yes
 这只删除旧 Agent 本机的 `~/.config/weclawbot/agent-mqtt.json`，不会让屏幕重新
 出码；重新出码要以设备端 **重置智能体配对** 为准。
 
+云端绑定状态才是权威。新的 Agent 绑定同一块物理屏幕后，旧 Agent 的 MQTT
+凭证应被云端明确拒绝，旧 Agent 不能因为本地还残留 profile 文件就继续控制屏幕。
+`weclawbotctl status` 只代表本机文件存在；是否仍然拥有这块屏，以
+`weclawbotctl doctor --online` 的在线检查为准。
+
 物理兜底：右键长按 5 秒是全清，会同时清文字、照片、微信登录和智能体配对；
 只有确认要全部清掉时才用。
 

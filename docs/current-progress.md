@@ -613,8 +613,10 @@ MQTT 语义：
 - 右键“全清”已收束为同时清文字、照片、微信登录和 Agent MQTT 凭证；
   BYOA 下会进入重新生成六位绑定码的流程。
 - 用户可见的 `重置智能体配对` 入口已补；服务端 bootstrap 已能自愈
-  “服务器已绑定但设备 NVS 丢失”的卡死，后续可继续补显式 revoke 当前
-  BYOA 绑定
+  “服务器已绑定但设备 NVS 丢失”的卡死。下一步私有云端必须把正常重绑也
+  作为 active owner 切换处理：新 Agent claim 成功后撤销旧 Agent/device
+  MQTT ACL，旧 OpenClaw/Hermes 再发上屏要得到 `credential_revoked` /
+  `not_current_owner` 这类明确拒绝，不能误更新屏幕或只超时。
 - BYOA 下可选微信入口只是后续方向，当前屏端只应呈现配对码/已接管状态
 
 ## Hermes / OpenClaw 插件

@@ -120,6 +120,12 @@ That only removes the local `~/.config/weclawbot/agent-mqtt.json` credential on
 the Agent host. It does not make the screen show a new code; re-pairing starts
 from the device-side **重置智能体配对** action.
 
+The cloud binding is authoritative. After a new Agent pairs with the same
+physical screen, the previous Agent credential should be rejected by MQTT with a
+clear owner/revoked error; an old Agent must not keep controlling the screen just
+because its local profile file still exists. `weclawbotctl status` is local
+state; use `weclawbotctl doctor --online` to verify live ownership.
+
 Physical fallback: holding the right button for five seconds performs full
 clear. It clears text, photos, WeChat login, and Agent pairing, so use it only
 when all local user state should be removed.

@@ -83,8 +83,9 @@ no reply target and never require a WeChat round trip.
    `online` plus the live `device_context`; the agent may then publish a
    screen document. The configuration page's `重置智能体配对` action clears
    the device-local BYOA credential, saves BYOA as the current ownership mode,
-   reboots the device, and forces a fresh pairing flow. The old Agent host
-   should also run `weclawbotctl unbind --yes` to remove its local profile.
+   reboots the device, and forces a fresh pairing flow. The old Agent host may
+   run `weclawbotctl unbind --yes` to remove its local profile, but this is only
+   local cleanup. Cloud-side binding ownership is the security boundary.
 
 There is no Agent URL for an end user to discover or enter.
 The configuration choice selects the official WeClawBot Agent or this
@@ -94,6 +95,38 @@ If a device loses its local BYOA credential while the gateway still has an old
 binding, the next device bootstrap revokes that stale device/agent ACL before
 issuing a fresh pairing code. This keeps physical-device recovery possible
 without asking the user to find an old Agent installation.
+
+## Rebinding And Owner Authority
+
+The gateway is the authority for the current BYOA owner. A successful new
+pairing for the same physical `device_id` must replace the previous owner, even
+if the previous Agent still has a local `agent-mqtt.json` file.
+
+Required cloud behavior:
+
+- Store an active binding record per device with a monotonic binding generation
+  or opaque `binding_id`, the current Agent principal, and the current device
+  principal.
+- On a successful claim, revoke the previous Agent credential and previous
+  device credential for that device before or atomically with activating the new
+  binding.
+- If the broker supports it, disconnect old MQTT clients after revocation. If it
+  does not, the ACL/auth path must still fail closed so old publishes cannot
+  reach the screen.
+- Reject old-Agent control publishes with an explicit machine-readable reason
+  such as `credential_revoked`, `binding_replaced`, or `not_current_owner`.
+  Timeouts are only acceptable for network loss, not for known rebindings.
+- Never retain or queue old control messages across a rebind. BYOA remains
+  live-only.
+- Treat `weclawbotctl status` as local state only. `doctor --online` or an
+  equivalent live check is the authority for whether that Agent still owns the
+  screen.
+
+Expected user-visible result: if an old OpenClaw bot sends "上屏" after the
+device has been rebound to Hermes, the old Agent must fail clearly and the
+physical screen must stay under the Hermes binding. It must not silently update
+the screen, claim success after only publishing to MQTT, or leave the user with
+an unexplained timeout.
 
 ### Internal pairing contract
 

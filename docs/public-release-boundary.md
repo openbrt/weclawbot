@@ -36,6 +36,10 @@ If a file is not clearly inside the public boundary, do not publish it.
   admin scripts, server logs, or private deployment code. In this workspace,
   `server/` is private unless explicitly reviewed and split into a separate
   public artifact.
+- The private `weclawbot.link` website/gateway source. Public files may document
+  protocol requirements such as BYOA active binding and MQTT credential
+  revocation, but the hosted implementation stays private unless separately
+  approved for release.
 - The private website deployment workspace. In this workspace,
   `site-experience/` is local/private; the public repo only publishes
   `web/firmware-contract.json` and the sync rules.

@@ -24,6 +24,8 @@
   `applied`；`rejected` 和 timeout 都应视为失败。
 - BYOA 下行控制是 live-only：不使用 retained message，不提供离线命令队列。
   这降低误投和过期命令风险，但需要 UI/Agent 明确告诉用户“设备离线则不会执行”。
+- 重新配对是云端 owner 切换，不是旧 Agent 自觉退出。新绑定生效后，旧 Agent
+  的 MQTT 凭证必须被撤销，旧 Agent 再发“上屏”应得到明确拒绝，不能误更新屏幕。
 
 ## 参与方
 
@@ -61,6 +63,8 @@ sequenceDiagram
 - Device 和 Agent 使用不同 MQTT 凭证与 ACL。
 - BYOA 与官方模式设备 id 前缀分离，避免 ACL 串台。
 - 设备本地凭证丢失但 Redis 仍有旧 binding 时，需要 bootstrap repair/revoke。
+- 同一物理 `device_id` 成功 claim 新 Agent 时，网关必须把 active binding
+  切到新 owner，撤销旧 Agent/device 凭证，并尽量踢掉旧 MQTT 会话。
 
 ### 2. 屏幕文档链路
 
@@ -165,6 +169,7 @@ sequenceDiagram
 | --- | --- | --- | --- |
 | status 缺少结构化关联 | `applied` detail 通常是 document id，`rejected` 多为 reason | 并发时 CLI/Agent 可能误认回执 | status v2 增加 `control_id`、`document_id`、`activity_correlation_id` |
 | status QoS 0 丢失 | 为节省内存而采用 | 可能出现假 timeout | 增加序号、短期重发、或仅关键 status QoS 1 |
+| 旧 Agent 继续持有本地凭据 | 用户从 OpenClaw 切到 Hermes 后，旧 OpenClaw 仍有 `agent-mqtt.json` | 旧 Agent 可能误报“已上屏”或继续控制屏幕 | 云端 active binding/generation 为权威；新 claim 撤销旧 ACL，旧 publish 返回 `credential_revoked` / `not_current_owner` |
 | 多本地 Agent 共享凭据 | 当前允许复用同一 MQTT profile | 互相覆盖屏幕或抢占 thinking | 本地锁、actor namespace、控制租约、审计字段 |
 | 定时任务抢屏 | 100 cron 已局部修复 | 用户内容可能被状态卡覆盖 | 把 cron 模式产品化：只在 base revision 匹配时续写 |
 | 离线命令不排队 | 设计上 live-only | 用户可能以为任务稍后会执行 | CLI/Agent 明确报告 offline，不承诺排队 |
@@ -184,6 +189,7 @@ sequenceDiagram
 
 - Agent 不得在未收到 `applied` 时说“已上屏”。
 - BYOA 下微信入口必须忽略，不触发 thinking、不上屏、不回微信。
+- 重绑后旧 Agent 必须失去 owner 权限；旧 MQTT 凭据不能继续控制屏幕。
 - 屏端拒绝过期或不匹配的 `base_revision`。
 - 屏端拒绝错误 activity id 的 `idle`。
 - 不把字体、换行、分页审美写死进固件；固件只做硬件边界校验和显示。
@@ -213,6 +219,7 @@ sequenceDiagram
 | 场景 | 期望结果 | 自动化程度 |
 | --- | --- | --- |
 | BYOA 配对码过期后刷新 | 旧码不可 claim，新码可 claim | 可脚本化 |
+| OpenClaw 绑定后切到 Hermes 重新配对 | Hermes 可上屏；旧 OpenClaw 再发上屏被明确拒绝，屏幕不变 | 需要私有云端/真机 E2E |
 | `screen_document` 正常上屏 | CLI 等到 `applied` | 已部分脚本化 |
 | 空 `base_revision` 覆盖非空屏 | 固件 `rejected: stale_screen_revision` | 可脚本化 |
 | `--force` 覆盖 | 固件 `applied` 且更新 revision | 已真机验证 |
