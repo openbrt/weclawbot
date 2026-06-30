@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>微笺屏 WeClawBot 本地控制台</title>
+    <title>微笺屏 WeClawBot 固件安装与设备配置</title>
     <link rel="stylesheet" href="./style.css">
     <script type="module" src="https://unpkg.com/esp-web-tools@10/dist/web/install-button.js?module"></script>
     <script defer src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
@@ -13,10 +13,10 @@
     <header class="topbar">
       <div>
         <p class="eyebrow">Waveshare ESP32-S3-RLCD-4.2</p>
-        <h1>微笺屏 WeClawBot 本地控制台</h1>
+        <h1>微笺屏固件安装与设备配置</h1>
       </div>
       <div class="top-actions">
-        <span class="build-badge">公开版安装页</span>
+        <span class="build-badge">WeClawBot 官方 / BYOA</span>
         <span class="build-badge">ESP32-S3</span>
       </div>
     </header>
@@ -26,9 +26,9 @@
         <div class="panel-heading">
           <div>
             <p class="section-kicker">Install</p>
-            <h2 id="install-title">刷写固件</h2>
+            <h2 id="install-title">安装公开固件</h2>
           </div>
-          <span class="state-pill">本地产物</span>
+          <span class="state-pill">公开安装包</span>
         </div>
 
         <div class="firmware-row">
@@ -49,7 +49,7 @@
         <esp-web-install-button manifest="./manifest.json">
           <button class="button primary install-button" slot="activate" type="button">
             <i data-lucide="download"></i>
-            <span>刷写微笺屏固件</span>
+            <span>安装 / 更新固件</span>
           </button>
           <p class="browser-warning" slot="unsupported">当前浏览器不能打开串口，请用桌面版 Chrome 或 Edge。</p>
           <p class="browser-warning" slot="not-allowed">请通过 localhost 或 HTTPS 打开本页面。</p>
@@ -58,7 +58,7 @@
         <ol class="steps">
           <li>按住 BOOT 插入 Type-C，端口出现后松开 BOOT 并刷写。</li>
           <li>刷完后重新插入，不按 BOOT，让设备进入正常启动。</li>
-          <li>连接设备，写入 Wi-Fi，并选择官方云端或自定义智能体。</li>
+          <li>连接设备，写入 Wi-Fi，并选择 WeClawBot 官方或自定义智能体。</li>
         </ol>
       </section>
 
@@ -136,7 +136,7 @@
           <fieldset class="agent-mode-field">
             <legend>屏幕接管方式</legend>
             <div class="segmented-control" role="group" aria-label="智能体模式">
-              <button id="agent-mode-official" class="segment is-selected" type="button" aria-pressed="true">官方云端</button>
+              <button id="agent-mode-official" class="segment is-selected" type="button" aria-pressed="true">WeClawBot 官方</button>
               <button id="agent-mode-byoa" class="segment" type="button" aria-pressed="false">自定义智能体</button>
             </div>
             <p class="mode-help" id="agent-mode-help">保存并重启后，屏幕显示微信二维码；扫码即可由 WeClawBot 官方智能体处理并上屏。</p>

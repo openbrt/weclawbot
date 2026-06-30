@@ -176,10 +176,10 @@ function applyMessage(message) {
           : "自定义智能体 / 正在准备绑定";
     } else {
       ui.curatorState.textContent = message.agent_mqtt_connected
-        ? "官方云端 / 通道在线"
+        ? "WeClawBot 官方 / MQTT 在线"
         : message.agent_paired
-          ? "官方云端 / 正在重连"
-          : "官方云端 / 正在准备";
+          ? "WeClawBot 官方 / 正在重连"
+          : "WeClawBot 官方 / 正在准备";
     }
     const qrTime = message.wechat_qr_seconds_left > 0
       ? ` (${Math.floor(message.wechat_qr_seconds_left / 60)}:${String(message.wechat_qr_seconds_left % 60).padStart(2, "0")})`

@@ -11,8 +11,8 @@
       --muted: #5e6c66;
       --line: #d8dfdb;
       --paper: #f7f8f5;
-      --accent: #127768;
-      --soft: #eaf3ef;
+      --accent: #0f766e;
+      --soft: #e6f3ef;
     }
     * { box-sizing: border-box; }
     body {
@@ -128,11 +128,12 @@
 
     <div class="hero">
       <div>
-        <h1>微信与 Agent 都能接管的桌面屏</h1>
-        <p class="lead">普通用户扫码使用官方智能体；高级用户用六位配对码把屏幕交给自己的 OpenClaw、Hermes、Codex 或脚本。</p>
-        <p class="lead">This repository publishes the auditable ESP32 firmware, Web Serial installer, behavior contract, and Agent plugins for WeClawBot.</p>
+        <h1>微笺屏 WeClawBot</h1>
+        <p class="lead">一块微信官方智能体和用户自带 Agent 都能接管的开源桌面屏。</p>
+        <p class="lead">这里发布 ESP32 固件、固件安装/设备配置页、行为契约和 Agent 插件。</p>
         <div class="links">
-          <a class="primary" href="web/">安装 / 配置</a>
+          <a class="primary" href="web/">固件安装 / 设备配置</a>
+          <a class="secondary" href="https://github.com/openbrt/weclawbot/releases">固件 Release</a>
           <a class="secondary" href="https://weclawbot.link/">官网体验</a>
           <a class="secondary" href="README.zh-CN.md">中文说明</a>
           <a class="secondary" href="README.md">English README</a>
@@ -143,20 +144,20 @@
 
     <section>
       <div>
-        <h2>官方微信模式</h2>
-        <p>屏幕显示微信二维码。扫码后发送文字、清单、提醒或照片，由官方智能体整理并通过 MQTT/WSS 回到真机。</p>
+        <h2>WeClawBot 官方</h2>
+        <p>普通用户扫码进入微信对话。官方智能体理解留言、提醒、清单或照片，并把适合小屏的画面推回真机。</p>
       </div>
       <div>
-        <h2>自定义智能体模式</h2>
-        <p>配置页切到“自定义智能体”，屏幕显示六位配对码。用户自己的 Agent 安装 weclawbotctl 后接管屏幕。</p>
+        <h2>自定义智能体</h2>
+        <p>高级用户在配置页切换 BYOA，屏幕显示六位配对码。OpenClaw、Hermes、Codex 或脚本安装 weclawbotctl 后接管。</p>
       </div>
       <div>
         <h2>隐私可审计</h2>
-        <p>固件保管微信登录、Wi-Fi、本地内容和硬件状态；公开仓库不包含官方云端密钥、用户日志或私有部署脚本。</p>
+        <p>ESP32 保管微信登录、Wi-Fi、本地内容和硬件状态；公开仓库不包含官方云端密钥、用户日志或私有部署脚本。</p>
       </div>
     </section>
 
-    <p class="note">公开固件的行为边界由 <a href="web/firmware-contract.json">web/firmware-contract.json</a> 描述，官网仿真机和 release 流程都应以它为准。</p>
+    <p class="note">找安装和配置就进 <a href="web/">web/</a>。公开固件行为边界由 <a href="web/firmware-contract.json">web/firmware-contract.json</a> 描述，官网仿真机和 release 流程都应以它为准。</p>
   </main>
 </body>
 </html>

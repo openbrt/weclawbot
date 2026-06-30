@@ -55,6 +55,48 @@ jobs:
             idf.py -B build -D SDKCONFIG_DEFAULTS="sdkconfig.defaults;sdkconfig.release.defaults" build
             scripts/prepare_web_firmware.sh
 
+      - name: Update public installer metadata
+        env:
+          VERSION: ${{ steps.meta.outputs.version }}
+          TAG: ${{ steps.meta.outputs.tag }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const fs = require("node:fs");
+          const version = process.env.VERSION;
+          const tag = process.env.TAG;
+
+          const manifest = JSON.parse(fs.readFileSync("web/manifest.json", "utf8"));
+          manifest.version = version;
+          fs.writeFileSync("web/manifest.json", `${JSON.stringify(manifest, null, 2)}\n`);
+
+          const contract = JSON.parse(fs.readFileSync("web/firmware-contract.json", "utf8"));
+          contract.firmware = {
+            ...(contract.firmware || {}),
+            version,
+            channel: "public",
+            development_build: false,
+            manifest_path: "web/manifest.json",
+            release_url: `https://github.com/openbrt/weclawbot/releases/tag/${tag}`,
+            source_url: "https://github.com/openbrt/weclawbot",
+          };
+          fs.writeFileSync("web/firmware-contract.json", `${JSON.stringify(contract, null, 2)}\n`);
+          NODE
+
+      - name: Publish installer firmware to Pages source
+        if: ${{ github.event_name == 'workflow_dispatch' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          git add web/manifest.json web/firmware-contract.json web/firmware/*.bin
+          if git diff --cached --quiet; then
+            echo "No installer firmware changes to publish."
+            exit 0
+          fi
+          git commit -m "Publish web installer firmware v${{ steps.meta.outputs.version }}"
+          git push origin HEAD:main
+
       - name: Package release assets
         shell: bash
         run: |
