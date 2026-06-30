@@ -5,7 +5,7 @@
     "channel": "public",
     "development_build": false,
     "manifest_path": "web/manifest.json",
-    "release_url": "https://github.com/openbrt/weclawbot/releases",
+    "release_url": "https://github.com/openbrt/weclawbot/releases/tag/v0.1.77",
     "source_url": "https://github.com/openbrt/weclawbot"
   },
   "product": {
@@ -52,12 +52,20 @@
     "thinking_footer": "智能体思考中",
     "byoa_pairing_label": "AI智能体绑定码",
     "byoa_pairing_footer": "Agent 端输入此码绑定",
-    "dashboard_carousel": ["calendar", "photo", "note"],
+    "dashboard_carousel": [
+      "calendar",
+      "photo",
+      "note"
+    ],
     "max_visible_screens": 5,
     "max_note_pages": 3,
     "platform_hint": "文档、图片和其他文件需要开通 WeClawBot 平台服务",
     "show_status_icons": true,
-    "status_icons": ["wifi", "plug", "battery"]
+    "status_icons": [
+      "wifi",
+      "plug",
+      "battery"
+    ]
   },
   "agent_modes": {
     "official": {

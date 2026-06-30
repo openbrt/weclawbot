@@ -1,6 +1,6 @@
 {
   "name": "WeClawBot",
-  "version": "0.1.46",
+  "version": "0.1.77",
   "new_install_prompt_erase": false,
   "new_install_improv_wait_time": 0,
   "builds": [
