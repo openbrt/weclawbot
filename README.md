@@ -324,6 +324,13 @@ keeps structured agent logs on the server at
 `/var/log/weclawbot/curator-agent.log` and suppresses low-value `ignore`
 replies so greetings and probe messages do not create confusing WeChat chatter.
 
+## Public Release Boundary
+
+Before publishing to the public repository, read
+`docs/public-release-boundary.md`. It is the canonical rule for what belongs in
+`openbrt/weclawbot`, what must stay private, and how public firmware artifacts
+must be built.
+
 ## History Archive
 
 The previous research workspace has been moved to:

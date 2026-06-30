@@ -33,6 +33,7 @@ WeClawBot / 微笺屏是基于 Waveshare ESP32-S3-RLCD-4.2 的开源固件项目
 - [byoa-reliability-analysis.md](byoa-reliability-analysis.md)
 - [official-site-firmware-sync.md](official-site-firmware-sync.md)
 - [open-firmware-privacy-boundary.md](open-firmware-privacy-boundary.md)
+- [public-release-boundary.md](public-release-boundary.md)
 - [npm-distribution.md](npm-distribution.md)
 
 ## 固件当前状态
@@ -689,6 +690,11 @@ MQTT 语义：
 - 中键长按开关机是否已经在当前固件完整实现
 
 ## 发布与公开仓库
+
+Canonical 发布边界见
+[public-release-boundary.md](public-release-boundary.md)。后续任何 agent 或
+同学在 `openbrt/weclawbot` 上 staging、commit、push、tag 或 release 前都
+应先按该文档检查，不再依赖临场口头提醒。
 
 公开仓库只应包含：
 

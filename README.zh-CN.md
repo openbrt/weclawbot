@@ -136,6 +136,13 @@ bot token、Wi-Fi 密码、二维码凭证或消息游标。
 
 更多背景见 [docs/current-progress.md](docs/current-progress.md)。
 
+## 公开发布边界
+
+发布到公开仓库前，先读
+[docs/public-release-boundary.md](docs/public-release-boundary.md)。这是
+`openbrt/weclawbot` 的 canonical 规则：哪些文件可以公开、哪些必须留在
+私有工作区、公开固件产物必须怎样构建，都以它为准。
+
 ## 许可证
 
 见 [LICENSE](LICENSE)。
