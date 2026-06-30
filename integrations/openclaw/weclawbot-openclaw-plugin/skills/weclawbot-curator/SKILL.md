@@ -44,10 +44,14 @@ Never claim it lets an agent push a periodic or scheduled card.
 firmware contract for that event. It is not the authority for a locally paired
 `weclawbotctl` profile. If a user directly asks to send text, a status card, a
 timer, or other agent-originated content to the screen, first run
-`weclawbotctl status` or `weclawbotctl doctor --online`, or call
-`weclawbot_status` with `online:true`. If the profile is paired and online,
-render the content into a `weclawbot.screen_document.v1` pixel document and
-publish it with:
+`weclawbotctl doctor --online --timeout 8`, or call `weclawbot_status` with
+`online:true`, before rendering images, writing scripts, or doing retrieval.
+If this online check fails, stop immediately and tell the user the concrete
+reason. In particular, `credential_revoked_or_not_current_owner` means this
+screen has been re-paired to another Agent; do not keep working, do not render
+a preview, and do not publish. If the profile is paired and online, render the
+content into a `weclawbot.screen_document.v1` pixel document and publish it
+with:
 
 ```bash
 weclawbotctl screen /path/to/screen-document.json

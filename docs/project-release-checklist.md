@@ -232,6 +232,8 @@ gh run watch --repo openbrt/weclawbot --exit-status
 - [ ] 配置页 **重置配置 -> 重置智能体配对** 后，设备能重新显示 BYOA 配对码。
 - [ ] BYOA 从一个 Agent 重新配对到另一个 Agent 后，新 Agent 能上屏，旧 Agent
   再发上屏被云端明确拒绝，且真机屏幕不被旧 Agent 改动。
+- [ ] 旧 OpenClaw/Hermes Agent 的本地凭据失效时，直接上屏请求在生成脚本、
+  渲染图片或拉取数据前快速失败，并提示重新配对。
 - [ ] 左右键短按能翻日历/照片/留言页。
 - [ ] 清文字不把照片清掉；全清才清照片、微信和 Agent 状态。
 - [ ] BYOA 下微信输入被忽略。
@@ -245,6 +247,9 @@ gh run watch --repo openbrt/weclawbot --exit-status
 - [ ] package version 更新。
 - [ ] npm README 第一屏说明“一句话让 Agent 安装并配对”。
 - [ ] OpenClaw install/doctor 文档与实际命令一致。
+- [ ] README、OpenClaw skill/workspace 明确 direct screen request 先跑
+  `weclawbotctl doctor --online --timeout 8` 或 `weclawbot_status online:true`；
+  `credential_revoked_or_not_current_owner` 必须停止并提示重新配对。
 - [ ] README、Hermes skill、OpenClaw skill 都明确 `mono1` 位语义：
   `1=黑墨`、`0=白纸`，Pillow mode `1` 需要只把黑像素打包成 `1`。
 - [ ] skill 文档明确普通首屏默认白底黑字、低墨量，不默认黑底白字。
@@ -263,7 +268,7 @@ gh run watch --repo openbrt/weclawbot --exit-status
 
 - [ ] 在至少一个真实 Agent 环境验证：
   - [ ] `weclawbotctl bind <code>`
-  - [ ] `weclawbotctl doctor --online`
+  - [ ] `weclawbotctl doctor --online --timeout 8`
   - [ ] `weclawbotctl thinking`
   - [ ] `weclawbotctl screen`
   - [ ] 用户会话能收到效果预览图，不能只收到“已发送”。

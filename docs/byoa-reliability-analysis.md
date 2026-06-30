@@ -151,7 +151,7 @@ sequenceDiagram
   - 错误 `idle --id wrong-<id>` 被屏端拒绝为
     `activity_correlation_mismatch`
   - 正确 `idle --id <id>` 可回落并清空 activity id
-- `@openbrt/weclawbotctl@0.1.20` 当前版本已发布：
+- `@openbrt/weclawbotctl@0.1.22` 当前版本已发布：
   - `screen` 默认等待 `applied/rejected`
   - OpenClaw 插件声明 `contracts.tools`
   - 提供 `weclawbot_status`、`weclawbot_publish_screen_document`、
@@ -159,6 +159,8 @@ sequenceDiagram
   - 成功上屏后写入 preview manifest；OpenClaw hook 可在当前 TG/UI 会话自动回传
     PNG 效果图
   - 明确 packed mono1 的 `1=黑墨`、`0=白纸`，并对大面积黑底发出 warning
+  - OpenClaw direct turn 会在涉及上屏/屏幕时先做 MQTT online owner 检查；
+    如果旧凭据已被重配对撤销，会在模型运行前 block，并提示重新配对
 - OpenClaw 管理 UI 和 Telegram bot 的主要误判已定位：
   - 旧插件只确认 MQTT publish，不等屏端回执
   - 空 `base_revision` 被固件拒绝为 `stale_screen_revision`
@@ -170,7 +172,7 @@ sequenceDiagram
 | --- | --- | --- | --- |
 | status 缺少结构化关联 | `applied` detail 通常是 document id，`rejected` 多为 reason | 并发时 CLI/Agent 可能误认回执 | status v2 增加 `control_id`、`document_id`、`activity_correlation_id` |
 | status QoS 0 丢失 | 为节省内存而采用 | 可能出现假 timeout | 增加序号、短期重发、或仅关键 status QoS 1 |
-| 旧 Agent 继续持有本地凭据 | 用户从 OpenClaw 切到 Hermes 后，旧 OpenClaw 仍有 `agent-mqtt.json` | 旧 Agent 可能误报“已上屏”或继续控制屏幕 | 云端 active binding/generation 为权威；新 claim 撤销旧 ACL，旧 publish 返回 `credential_revoked` / `not_current_owner` |
+| 旧 Agent 继续持有本地凭据 | 用户从 OpenClaw 切到 Hermes 后，旧 OpenClaw 仍有 `agent-mqtt.json`；100 实测旧凭据 `doctor --online` 已返回 `credential_revoked_or_not_current_owner` | 旧 Agent 可能误报“已上屏”或浪费时间生成脚本/图片 | 云端 active binding/generation 为权威；新 claim 撤销旧 ACL；`0.1.22` OpenClaw hook 在模型前做 owner preflight，失败则 block |
 | 多本地 Agent 共享凭据 | 当前允许复用同一 MQTT profile | 互相覆盖屏幕或抢占 thinking | 本地锁、actor namespace、控制租约、审计字段 |
 | 定时任务抢屏 | 100 cron 已局部修复 | 用户内容可能被状态卡覆盖 | 把 cron 模式产品化：只在 base revision 匹配时续写 |
 | 离线命令不排队 | 设计上 live-only | 用户可能以为任务稍后会执行 | CLI/Agent 明确报告 offline，不承诺排队 |

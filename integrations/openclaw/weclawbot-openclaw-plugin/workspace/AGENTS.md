@@ -21,17 +21,20 @@ meaning. For greetings, acknowledgements, or content with no future value, use
 ## Direct Screen Requests
 
 When the user asks to put something on the WeClawBot screen, treat WeClawBot
-as the physical ESP32 e-paper display, not OpenClaw Canvas. First check the
-local pairing:
+as the physical ESP32 e-paper display, not OpenClaw Canvas. Before rendering,
+writing scripts, fetching data, or composing pixels, first check that the local
+pairing is still the live owner:
 
 ```bash
-weclawbotctl status
-weclawbotctl doctor --online
+weclawbotctl doctor --online --timeout 8
 ```
 
+If this check fails, stop immediately and report the reason. If the error is
+`credential_revoked_or_not_current_owner`, the screen has been re-paired to
+another Agent and this OpenClaw session must not keep working on the request.
 If it is paired and online, render the requested text, status, image, or chart
-into a `weclawbot.screen_document.v1` with 1-bit pages for the firmware
-content viewport, then publish it:
+into a `weclawbot.screen_document.v1` with 1-bit pages for the firmware content
+viewport, then publish it:
 
 ```bash
 weclawbotctl screen /path/to/screen-document.json

@@ -27,7 +27,7 @@ six-digit pairing code, do this autonomously:
 ```bash
 npm install -g @openbrt/weclawbotctl
 weclawbotctl bind 123456 --name "$AGENT_NAME"
-weclawbotctl doctor --online
+weclawbotctl doctor --online --timeout 8
 ```
 
 Use your product name for `$AGENT_NAME`, such as `codex`, `claude-code`,
@@ -36,7 +36,7 @@ is not available, use the one-shot form:
 
 ```bash
 npm exec --package @openbrt/weclawbotctl -- weclawbotctl bind 123456 --name "$AGENT_NAME"
-npm exec --package @openbrt/weclawbotctl -- weclawbotctl doctor --online
+npm exec --package @openbrt/weclawbotctl -- weclawbotctl doctor --online --timeout 8
 ```
 
 Do not ask the user for an MQTT URL, username, password, Wi-Fi password,
@@ -67,6 +67,14 @@ user explicitly grants that permission.
 To put text, status, diagrams, or images on the screen, render them into a
 pre-rendered `weclawbot.screen_document.v1` first. The firmware receives pixels;
 it does not lay out text, choose fonts, or split pages for agents.
+
+Before doing any expensive work for a direct screen request, run
+`weclawbotctl doctor --online --timeout 8` or the OpenClaw
+`weclawbot_status` tool with `online:true`. If the check returns
+`credential_revoked_or_not_current_owner`, this local Agent is no longer the
+current owner because the screen was re-paired elsewhere. Stop immediately,
+tell the user to re-pair this Agent with the current six-digit code, and do not
+render, preview, or publish.
 
 Packed mono1 rows are MSB-first: bit `1` is black ink and bit `0` is white
 paper. With Pillow mode `1`, set a packed bit only when the source pixel is
@@ -233,7 +241,7 @@ they are never placed in a gateway mailbox. A paired Agent can publish a
 pre-rendered screen document immediately:
 
 ```bash
-weclawbotctl doctor --online
+weclawbotctl doctor --online --timeout 8
 weclawbotctl preview /path/to/screen-document.json
 weclawbotctl screen /path/to/screen-document.json
 ```
@@ -242,7 +250,9 @@ The plugin exposes both validators and publish tools. The validator reports
 `direct_delivery_ready:false` when a supplied event contract says that specific
 inbound event cannot use the live document path, but that does not disable a
 locally paired `weclawbotctl` profile. Before saying direct screen delivery is
-unavailable, run `weclawbotctl status` or `weclawbotctl doctor --online`.
+unavailable, run `weclawbotctl doctor --online --timeout 8`; if it reports
+`credential_revoked_or_not_current_owner`, stop and ask the user to re-pair
+this Agent with the current six-digit code.
 
 The pairing UX deliberately requires no user-supplied Agent endpoint: choose
 **自定义智能体** in the device configurator, then enter the six-digit code shown
@@ -251,14 +261,14 @@ on screen:
 ```bash
 weclawbotctl bind 123456 --name openclaw
 weclawbotctl status
-weclawbotctl doctor --online
+weclawbotctl doctor --online --timeout 8
 ```
 
 Or without a global install:
 
 ```bash
 npm exec --package @openbrt/weclawbotctl -- weclawbotctl bind 123456 --name openclaw
-npm exec --package @openbrt/weclawbotctl -- weclawbotctl doctor --online
+npm exec --package @openbrt/weclawbotctl -- weclawbotctl doctor --online --timeout 8
 ```
 
 `weclawbot-byoa-bind 123456` remains as a compatibility alias. The command

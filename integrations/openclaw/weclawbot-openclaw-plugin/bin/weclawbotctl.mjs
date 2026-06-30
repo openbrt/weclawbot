@@ -9,7 +9,7 @@ import process from "node:process";
 
 import { validateActivity } from "../lib/activity.mjs";
 import { validateScreenDocument } from "../lib/direct-control.mjs";
-import { normalizeCredentials, publishControl, publishControlAndWaitStatus, testConnection } from "../lib/mqtt-control.mjs";
+import { classifyMqttControlError, normalizeCredentials, publishControl, publishControlAndWaitStatus, testConnection } from "../lib/mqtt-control.mjs";
 import { createPreviewArtifactDir, writePreviewManifest } from "../lib/preview-manifest.mjs";
 import { writeScreenDocumentPreviewFiles } from "../lib/screen-preview.mjs";
 
@@ -108,6 +108,7 @@ async function commandDoctor(values) {
     credentials: credentialsPath(),
     json: false,
     online: false,
+    timeout: 12,
   });
   const file = expandPath(options.credentials);
   const checks = [];
@@ -139,10 +140,19 @@ async function commandDoctor(values) {
   }
   if (options.online && config) {
     try {
-      await testConnection(payload);
+      await testConnection(payload, { timeoutMs: Math.max(1, Number(options.timeout) || 12) * 1000 });
       checks.push({ name: "mqtt_online", ok: true, detail: "connected" });
     } catch (error) {
-      checks.push({ name: "mqtt_online", ok: false, detail: error.message });
+      const mqttError = classifyMqttControlError(error);
+      checks.push({
+        name: "mqtt_online",
+        ok: false,
+        detail: mqttError.message,
+        hint: mqttError.code === "credential_revoked_or_not_current_owner"
+          ? "This local profile is no longer the current owner. Re-pair with the six-digit code shown on the device."
+          : "Check screen power, Wi-Fi, and broker reachability, then retry.",
+        error_detail: mqttError.detail,
+      });
     }
   }
   printDoctor(checks, options.json);
@@ -599,6 +609,7 @@ function printDoctor(checks, json) {
   }
   for (const check of checks) {
     console.log(`${check.ok ? "ok" : "fail"} ${check.name}: ${check.detail}`);
+    if (!check.ok && check.hint) console.log(`hint ${check.name}: ${check.hint}`);
   }
 }
 
@@ -809,7 +820,7 @@ function usage() {
   console.error(`Usage:
   weclawbotctl bind <six-digit-code> [--name agent-name]
   weclawbotctl status [--json]
-  weclawbotctl doctor [--online] [--json]
+  weclawbotctl doctor [--online] [--json] [--timeout seconds]
   weclawbotctl export [--format env|json|mosquitto] [--include-secret] [--output file]
   weclawbotctl unbind --yes
   weclawbotctl thinking [--ttl seconds] [--id correlation-id]

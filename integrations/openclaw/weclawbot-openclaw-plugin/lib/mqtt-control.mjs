@@ -34,9 +34,9 @@ export async function publishControlAndWaitStatus(credentials, control, options 
   }
 }
 
-export async function testConnection(credentials) {
+export async function testConnection(credentials, options = {}) {
   const config = normalizeCredentials(credentials);
-  const client = connectMqtt(config);
+  const client = connectMqtt(config, { connectTimeoutMs: options.timeoutMs });
   try {
     await onceConnected(client);
   } finally {
@@ -67,14 +67,59 @@ export function normalizeCredentials(value) {
   return { url, username, password, clientId, controlTopic, statusTopic };
 }
 
-function connectMqtt(config) {
+export function classifyMqttControlError(error) {
+  const message = String(error?.message || error || "").trim();
+  const detail = String(error?.detail || message || "").trim();
+  const lower = `${message} ${detail}`.toLowerCase();
+  if (
+    lower.includes("credential_revoked_or_not_current_owner")
+    || lower.includes("not authorized")
+    || lower.includes("bad user name")
+    || lower.includes("bad username")
+    || lower.includes("bad username or password")
+    || lower.includes("username or password")
+    || lower.includes("connack 134")
+    || lower.includes("connack 135")
+  ) {
+    return {
+      code: "credential_revoked_or_not_current_owner",
+      message: "credential_revoked_or_not_current_owner",
+      detail: detail || "mqtt_not_authorized",
+    };
+  }
+  if (lower.includes("timeout")) {
+    return {
+      code: "mqtt_connect_timeout",
+      message: "mqtt_connect_timeout",
+      detail: detail || "timeout",
+    };
+  }
+  return {
+    code: "mqtt_unavailable",
+    message: message || "mqtt_unavailable",
+    detail: detail || "unknown",
+  };
+}
+
+export function normalizeMqttControlError(error) {
+  const classified = classifyMqttControlError(error);
+  if (error instanceof Error && error.message === classified.message) return error;
+  const normalized = new Error(classified.message);
+  normalized.code = classified.code;
+  normalized.detail = classified.detail;
+  normalized.cause = error;
+  return normalized;
+}
+
+function connectMqtt(config, options = {}) {
+  const connectTimeout = Math.max(1000, Number(options.connectTimeoutMs || 12_000));
   return mqtt.connect(config.url, {
     clientId: config.clientId,
     username: config.username,
     password: config.password,
     clean: true,
     reconnectPeriod: 0,
-    connectTimeout: 12_000,
+    connectTimeout,
     protocolVersion: 5,
     properties: { sessionExpiryInterval: 0 },
   });
@@ -89,7 +134,7 @@ function validateControl(control) {
 function publishJson(client, topic, value) {
   return new Promise((resolve, reject) => {
     client.publish(topic, JSON.stringify(value), { qos: 1, retain: false }, (error) => {
-      if (error) reject(error);
+      if (error) reject(normalizeMqttControlError(error));
       else resolve();
     });
   });
@@ -98,7 +143,7 @@ function publishJson(client, topic, value) {
 function subscribe(client, topic) {
   return new Promise((resolve, reject) => {
     client.subscribe(topic, { qos: 1 }, (error) => {
-      if (error) reject(error);
+      if (error) reject(normalizeMqttControlError(error));
       else resolve();
     });
   });
@@ -114,7 +159,7 @@ function waitForStatus(client, { timeoutMs, expectedDetail }) {
       if (error) reject(error);
       else resolve(status);
     };
-    const onError = (error) => finish(error);
+    const onError = (error) => finish(normalizeMqttControlError(error));
     const onMessage = (_topic, payload) => {
       const status = parseStatus(payload);
       if (!status) return;
@@ -157,7 +202,7 @@ function onceConnected(client) {
       else resolve();
     };
     const onConnect = () => finish();
-    const onError = (error) => finish(error);
+    const onError = (error) => finish(normalizeMqttControlError(error));
     client.once("connect", onConnect);
     client.once("error", onError);
   });

@@ -113,14 +113,18 @@ Required cloud behavior:
 - If the broker supports it, disconnect old MQTT clients after revocation. If it
   does not, the ACL/auth path must still fail closed so old publishes cannot
   reach the screen.
-- Reject old-Agent control publishes with an explicit machine-readable reason
-  such as `credential_revoked`, `binding_replaced`, or `not_current_owner`.
-  Timeouts are only acceptable for network loss, not for known rebindings.
+- Reject old-Agent control publishes with an explicit machine-readable reason.
+  The public `weclawbotctl` error is
+  `credential_revoked_or_not_current_owner`; gateway/broker internals may use
+  narrower reasons such as `credential_revoked`, `binding_replaced`, or
+  `not_current_owner`. Timeouts are only acceptable for network loss, not for
+  known rebindings.
 - Never retain or queue old control messages across a rebind. BYOA remains
   live-only.
-- Treat `weclawbotctl status` as local state only. `doctor --online` or an
-  equivalent live check is the authority for whether that Agent still owns the
-  screen.
+- Treat `weclawbotctl status` as local state only.
+  `weclawbotctl doctor --online --timeout 8` or an equivalent live check is the
+  authority for whether that Agent still owns the screen. Agents must run this
+  check before expensive rendering or retrieval for direct screen requests.
 
 Expected user-visible result: if an old OpenClaw bot sends "上屏" after the
 device has been rebound to Hermes, the old Agent must fail clearly and the
@@ -233,8 +237,10 @@ fixed panel. For event-triggered work, it should not send directly until that
 event reports `agent_transport.available=true`. For user-owned BYOA work,
 however, a local agent may also have an independently paired
 `weclawbotctl` profile; in that case it must run `weclawbotctl status` or
-`weclawbotctl doctor --online` before deciding that direct screen delivery is
-unavailable.
+`weclawbotctl doctor --online --timeout 8` before deciding that direct screen
+delivery is unavailable. If the live check returns
+`credential_revoked_or_not_current_owner`, the Agent must stop and ask the user
+to re-pair this Agent.
 
 ## Screen document
 

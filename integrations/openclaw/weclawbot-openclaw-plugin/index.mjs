@@ -8,7 +8,7 @@ import { defineToolPlugin } from "openclaw/plugin-sdk/tool-plugin";
 
 import { validateActivity } from "./lib/activity.mjs";
 import { validateScreenDocument } from "./lib/direct-control.mjs";
-import { normalizeCredentials, publishControl, publishControlAndWaitStatus, testConnection } from "./lib/mqtt-control.mjs";
+import { classifyMqttControlError, normalizeCredentials, publishControl, publishControlAndWaitStatus, testConnection } from "./lib/mqtt-control.mjs";
 import { collectCommandStrings, extractScreenDocumentPathFromExecParams, normalizeDeliveryContext } from "./lib/openclaw-preview.mjs";
 import { createPreviewArtifactDir, listRecentPreviewManifests, markPreviewManifest, writePreviewManifest } from "./lib/preview-manifest.mjs";
 import { renderScreenDocumentPreviewPages, writeScreenDocumentPreviewFiles } from "./lib/screen-preview.mjs";
@@ -53,8 +53,19 @@ const pluginEntry = defineToolPlugin({
           mqtt: maskedMqtt(config, payload.mqtt?.topics || {}),
         };
         if (online) {
-          await testConnection(payload);
-          result.online = true;
+          try {
+            await testConnection(payload);
+            result.online = true;
+          } catch (error) {
+            const mqttError = classifyMqttControlError(error);
+            result.ok = false;
+            result.online = false;
+            result.error = mqttError.message;
+            result.error_detail = mqttError.detail;
+            result.action_required = mqttError.code === "credential_revoked_or_not_current_owner"
+              ? "rebind_this_agent"
+              : "check_screen_online_or_network";
+          }
         }
         return result;
       },
@@ -243,9 +254,12 @@ export default pluginEntry;
 function registerOpenClawHooks(api) {
   if (!api || typeof api.on !== "function") return;
   api.on("before_agent_run", async (event, ctx) => {
+    if (!shouldAutoActivity(event, ctx)) return { outcome: "pass" };
+    const gate = await checkLivePairingForHook();
+    if (!gate.ok) return buildPairingBlockDecision(gate);
     await startHookActivity(api, event, ctx);
     return { outcome: "pass" };
-  }, { timeoutMs: 5_000 });
+  }, { timeoutMs: 15_000 });
   api.on("before_agent_finalize", async (event, ctx) => {
     await finishHookActivity(api, event, ctx, { final: false });
     return { action: "continue" };
@@ -285,6 +299,47 @@ async function startHookActivity(api, event, ctx) {
   } catch (error) {
     api.logger?.debug?.(`weclawbot activity hook skipped: ${errorMessage(error)}`);
   }
+}
+
+async function checkLivePairingForHook() {
+  const payload = await readCredentials(DEFAULT_CREDENTIALS_PATH);
+  if (!payload) {
+    return {
+      ok: false,
+      reason: "not_paired",
+      message: "本机 OpenClaw 没有 WeClawBot 配对凭据。请先在设备/配置页选择自定义智能体，用屏幕上的六位码重新执行 weclawbotctl bind。",
+    };
+  }
+  try {
+    await testConnection(payload, { timeoutMs: 6_000 });
+    return { ok: true };
+  } catch (error) {
+    const mqttError = classifyMqttControlError(error);
+    return {
+      ok: false,
+      reason: mqttError.code,
+      detail: mqttError.detail,
+      binding: payload.binding || {},
+      message: mqttError.code === "credential_revoked_or_not_current_owner"
+        ? "这块 WeClawBot 屏已经不归当前 OpenClaw Agent 接管，可能已经重新配对到另一个 Agent。为了避免旧 Agent 继续折腾，本次上屏请求已在渲染前停止；需要控制这块屏时，请用屏幕当前六位码重新配对。"
+        : "当前 WeClawBot 配对不在线或消息通道不可用。本次上屏请求已在渲染前停止；请先运行 weclawbotctl doctor --online --timeout 8 检查配对、屏幕电源和网络。",
+    };
+  }
+}
+
+function buildPairingBlockDecision(gate) {
+  return {
+    outcome: "block",
+    reason: gate.reason || "weclawbot_pairing_unavailable",
+    message: gate.message || "WeClawBot pairing is unavailable.",
+    category: "weclawbot_pairing",
+    metadata: {
+      reason: gate.reason || "unknown",
+      detail: gate.detail || "",
+      device_id: gate.binding?.device_id || "",
+      agent_id: gate.binding?.agent_id || "",
+    },
+  };
 }
 
 async function finishHookActivity(api, event, ctx, options = {}) {

@@ -814,7 +814,7 @@ OpenClaw / 其他本地 coding agent 常用命令：
 ```sh
 weclawbotctl bind <六位绑定码>
 weclawbotctl status
-weclawbotctl doctor --online
+weclawbotctl doctor --online --timeout 8
 weclawbotctl export --format env
 weclawbotctl screen <document.json>
 weclawbotctl clear
@@ -844,3 +844,22 @@ weclawbotctl clear
 - 已修正本地 Hermes skill 模板，并在公开 OpenClaw/Hermes 插件文档和
   `weclawbot_validate_screen_document` 中加入位语义、默认首屏视觉基线和高墨量
   warning。普通首屏默认白底黑字，黑底/反白只在用户明确要求时使用。
+
+## 2026-07-01 BYOA 重配对后的旧 Agent 快速失败
+
+- 现象：真机已从 100 上的 OpenClaw 切换到本机 Hermes 后，用户仍在原 OpenClaw
+  Telegram bot 里发“上屏”指令；旧 Agent 继续生成脚本/图片，用户看不到它已经
+  失去屏幕 owner。
+- 实测：100 服务器旧 `~/.config/weclawbot/agent-mqtt.json` 仍在，但
+  `/home/csc/.npm-global/bin/weclawbotctl doctor --online --json` 已返回
+  MQTT `Not authorized`，说明云端 broker ACL 撤权生效，旧凭据不能再控制屏幕。
+- 根因：旧 OpenClaw 插件没有在昂贵工作前把 MQTT online/owner 检查作为 gate；
+  `thinking` hook 失败会吞掉错误继续运行，skill 也只是提示“先 doctor”，强度不够。
+- 修复：`@openbrt/weclawbotctl@0.1.22` 将 MQTT `Not authorized` 归一为
+  `credential_revoked_or_not_current_owner`；OpenClaw `before_agent_run` 在
+  涉及 WeClawBot/上屏/屏幕的 direct turn 里先做 online owner preflight，失败则
+  返回 `outcome=block`，不再进入模型、渲染或发布。
+- 文档同步：npm README、OpenClaw skill/workspace、npm 分发文档和
+  BYOA 可靠性分析都要求 direct screen request 先执行
+  `weclawbotctl doctor --online --timeout 8` 或 `weclawbot_status online:true`；
+  看到 `credential_revoked_or_not_current_owner` 时旧 Agent 必须停止并提示重新配对。
