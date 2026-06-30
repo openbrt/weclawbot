@@ -54,7 +54,7 @@ export function validateScreenDocument(value, suppliedContext) {
       errors.push("uniform_screen_document: content pages cannot all be a single color; use screen_clear for clearing");
     }
   }
-  return result(context, errors, document);
+  return result(context, errors, document, pageStats);
 }
 
 function validatePage(page, index, viewport, errors, pageStats) {
@@ -81,18 +81,41 @@ function validatePage(page, index, viewport, errors, pageStats) {
     errors.push(`pages[${index}].data_b64 is not valid base64`);
   } else if (Number.isInteger(stride) && Number.isInteger(height) && bytes.length !== stride * height) {
     errors.push(`pages[${index}].data_b64 byte length does not match stride * height`);
-  } else if (bytes.length > 0) {
-    pageStats.push({ index, uniform: bytes.every((byte) => byte === bytes[0]) });
+  } else if (bytes.length > 0 && Number.isInteger(width) && Number.isInteger(height) && Number.isInteger(stride)) {
+    pageStats.push(pageBitStats(bytes, width, height, stride, index));
   }
 }
 
-function result(context, errors, document = null) {
+function pageBitStats(bytes, width, height, stride, index) {
+  let blackBits = 0;
+  const totalBits = width * height;
+  for (let y = 0; y < height; y += 1) {
+    const row = y * stride;
+    for (let x = 0; x < width; x += 1) {
+      if ((bytes[row + (x >> 3)] & (0x80 >> (x & 7))) !== 0) blackBits += 1;
+    }
+  }
+  return {
+    index,
+    uniform: totalBits > 0 && (blackBits === 0 || blackBits === totalBits),
+    blackRatio: totalBits > 0 ? blackBits / totalBits : 0,
+  };
+}
+
+function result(context, errors, document = null, pageStats = []) {
   const pageCount = Array.isArray(document?.pages) ? document.pages.length : 0;
   const warnings = [];
   if (pageCount === 1) {
     warnings.push("single_page_document: firmware will not split pixels; verify the page remains readable before publishing");
   } else if (pageCount > 1) {
     warnings.push("multi_page_document: firmware will auto-flip pages and manual left/right buttons can change pages");
+  }
+  const highInkPages = pageStats.filter((stat) => stat.blackRatio > 0.45);
+  if (highInkPages.length > 0) {
+    const pages = highInkPages
+      .map((stat) => `${stat.index + 1} (${Math.round(stat.blackRatio * 100)}% black)`)
+      .join(", ");
+    warnings.push(`high_ink_coverage: page ${pages}; default WeClawBot visuals should be black ink on white paper, not inverted/dark, unless the user explicitly asked for that style`);
   }
   return {
     ok: errors.length === 0,
@@ -101,6 +124,8 @@ function result(context, errors, document = null) {
     viewport: context.content_viewport,
     layout_guidance: {
       hardware_contract: "agent supplies pre-rendered mono1 pixels; firmware validates geometry and does not lay out text or split pages",
+      mono1_bit_semantics: "packed bit 1 is black ink; packed bit 0 is white paper; bits are MSB-first within each row",
+      default_visual_baseline: "use a white paper background with black ink for normal first-run cards; avoid inverted white-on-black or large dark panels unless explicitly requested",
       page_contract: "pages.length is the physical page count; content documents support 1-3 pages",
       preference_policy: "preserve user-agent learned layout preferences unless they violate hardware bounds or the user asks to change them",
       review_policy: "agent should inspect rendered bitmap pages against user preferences and learned standards before publishing when possible",

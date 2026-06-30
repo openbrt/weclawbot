@@ -41,6 +41,17 @@ a `weclawbot.screen_document.v1` object with:
 - a future UTC expiry;
 - one to three same-sized `mono1` pages, each no larger than 368 x 206.
 
+Packed mono1 uses MSB-first rows where bit `1` is black ink and bit `0` is
+white paper. When rendering with Pillow mode `1`, source pixels are
+`0=black, 1=white`; set packed bits only for black pixels. If this is reversed,
+the physical screen will show a black background with white text.
+
+For first-run output and normal cards, start from a conservative visual
+baseline: white paper background, black ink, generous margins, and low ink
+coverage. Do not use inverted white-on-black text, full-bleed dark panels, or
+poster-like black backgrounds unless the user explicitly asks for that style.
+For calligraphy or poetry, use black calligraphy on a white page as the default.
+
 Treat this skill as a hardware contract and starting point, not as a fixed house
 style. Preserve any layout preferences, visual language, page rhythm, font
 choices, or review habits that the user and Agent have already developed, unless

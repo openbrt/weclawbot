@@ -28,10 +28,10 @@ systemd 和测试文件，不应包含 `node_modules`、本地 MQTT 凭据或任
 
 ```bash
 npm view @openbrt/weclawbotctl version
-# 0.1.19
+# 0.1.20
 ```
 
-当前源码包版本为 `0.1.19`，在 `0.1.15` 的 OpenClaw 直接任务自动思考态基础上，
+当前源码包版本为 `0.1.20`，在 `0.1.15` 的 OpenClaw 直接任务自动思考态基础上，
 新增 `weclawbotctl preview`，并让 `weclawbotctl screen` 与
 `weclawbot_publish_screen_document` 返回 `preview.pages[].path`。Agent 应检查
 这些 PNG；在 OpenClaw 中，`0.1.19` 起默认写入 preview manifest，并由 hook 在
@@ -44,6 +44,8 @@ PNG 发给用户，作为上屏效果的可见证明。`0.1.17`
 `0.1.19` 增加确定性预览投递实验：`screen` 成功上屏后写入 preview manifest，
 OpenClaw hook 在当前 run 的时间窗内扫描 manifest 并把 PNG 通过当前会话渠道
 发回用户，覆盖 Agent 通过 Python/脚本间接调用 CLI 的情况。
+`0.1.20` 明确 mono1 位语义和默认首屏视觉基线：packed bit `1` 是黑墨，bit
+`0` 是白纸；普通首屏和卡片默认应是白底黑字，避免 Agent 初次生成黑底白字。
 
 已清理/迁移的早期包名：
 
@@ -114,4 +116,6 @@ Install @openbrt/weclawbotctl and connect to my WeClawBot screen with pairing co
 
 Agent 应自行阅读 npm README，完成 install、bind、doctor，并在工作中使用
 `weclawbotctl thinking` / `idle` / `screen` / `clear`。清屏必须走
-`screen_clear`，不能用纯黑、纯白或空白 `screen_document` 模拟。
+`screen_clear`，不能用纯黑、纯白或空白 `screen_document` 模拟。`screen` 文档
+的 `mono1` 打包规则是 `1=黑墨`、`0=白纸`；普通内容默认白底黑字，只有用户明确
+要求反白、夜间或黑底海报时才用大面积黑底。

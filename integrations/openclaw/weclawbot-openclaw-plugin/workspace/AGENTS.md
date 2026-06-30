@@ -61,6 +61,16 @@ The firmware receives pixels. Do not send raw text to firmware, and do not
 answer that direct delivery is unavailable before checking the local
 `weclawbotctl` profile.
 
+Packed mono1 uses MSB-first rows where bit `1` means black ink and bit `0`
+means white paper. If you use Pillow mode `1`, source pixels are `0=black` and
+`1=white`; set packed output bits only for black pixels.
+
+For the first screen after install and for ordinary text/card requests, default
+to white paper with black ink, readable margins, and low ink coverage. Do not
+use black backgrounds, inverted white text, or large dark panels unless the user
+explicitly asks for an inverted/night/poster style. If the preview looks
+inverted, visually heavy, crowded, or surprising, regenerate before publishing.
+
 The content viewport is 368 x 206 mono1 pixels, with one to three content pages.
 The firmware will not split a single pixel page after receiving it; `pages.length`
 is the page count on the physical screen. Preserve user-agent layout preferences,

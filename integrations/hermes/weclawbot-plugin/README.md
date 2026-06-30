@@ -86,5 +86,14 @@ Firmware will not split a single pixel page after receiving it; `pages.length`
 is the page count on the physical screen. Preserve user-agent layout preferences
 across plugin upgrades unless they violate the hardware limits or the user asks
 to change them.
+
+Packed mono1 rows are MSB-first: bit `1` is black ink and bit `0` is white
+paper. With Pillow mode `1`, source pixels are `0=black` and `1=white`; set a
+packed output bit only for black pixels. Reversing this produces a black
+background with white text on the device.
+
+For first-run and normal card output, start with white paper, black ink,
+readable margins, and low ink coverage. Do not use black backgrounds, inverted
+white text, or large dark panels unless the user explicitly asks for that style.
 It must reference the live `base_revision` from the screen context and carry a
 future UTC expiry. The plugin validates these hardware limits before sending.

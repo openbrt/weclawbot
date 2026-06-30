@@ -1,6 +1,6 @@
 {
   "name": "@openbrt/weclawbotctl",
-  "version": "0.1.19",
+  "version": "0.1.20",
   "description": "WeClawBot pairing and screen-control CLI for local AI agents.",
   "type": "module",
   "license": "MIT",

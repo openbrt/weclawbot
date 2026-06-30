@@ -68,6 +68,15 @@ To put text, status, diagrams, or images on the screen, render them into a
 pre-rendered `weclawbot.screen_document.v1` first. The firmware receives pixels;
 it does not lay out text, choose fonts, or split pages for agents.
 
+Packed mono1 rows are MSB-first: bit `1` is black ink and bit `0` is white
+paper. With Pillow mode `1`, set a packed bit only when the source pixel is
+black (`0`), otherwise the result is inverted on the physical screen.
+
+For first-run and normal card output, agents should default to a white paper
+background with black ink, readable margins, and low ink coverage. Avoid black
+backgrounds, inverted white text, and large dark panels unless the user
+explicitly asks for an inverted/night/poster style.
+
 ```bash
 weclawbotctl preview /path/to/screen-document.json
 weclawbotctl screen /path/to/screen-document.json
@@ -303,6 +312,10 @@ The hardware facts are stable: the content viewport is 368 x 206 mono1 pixels,
 content documents may contain one to three pages, and the firmware will not split
 a single pixel page after receiving it. If `pages.length === 1`, the physical
 screen has exactly one page.
+
+Packed mono1 uses MSB-first rows where bit `1` means black ink and bit `0`
+means white paper. Normal first-run visuals should look like ink on paper, not
+white text on a black panel, unless the user explicitly requests that style.
 
 Before publishing, agents should inspect or otherwise self-evaluate the rendered
 pages against the user's preferences and their own learned standards when their

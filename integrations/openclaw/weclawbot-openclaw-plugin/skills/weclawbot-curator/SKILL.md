@@ -93,6 +93,18 @@ pixel page after receiving it; if the document has `pages.length === 1`, the
 physical screen has exactly one page. Multi-page documents can be auto-flipped by
 firmware and changed with the physical left/right buttons.
 
+Packed mono1 rows are MSB-first. Bit `1` means black ink and bit `0` means white
+paper. If rendering with Pillow mode `1`, source pixels are `0=black` and
+`1=white`; set packed output bits only for black pixels. Reversing this produces
+the bad first impression of a black screen with white text.
+
+For first-run output and ordinary cards, default to a paper-like white
+background with black ink, readable margins, and low ink coverage. Do not use
+inverted white-on-black text, full-bleed dark panels, or poster-like black
+backgrounds unless the user explicitly asks for that style. For Chinese
+calligraphy or poetry, start with black calligraphy on a white page, optionally
+with a thin border or small seal.
+
 Before publishing, review the actual rendered bitmap pages when your runtime can
 inspect images. Judge the preview against the user's preferences and the agent's
 own learned standards: legibility, margins, crowding, page count, and continuity

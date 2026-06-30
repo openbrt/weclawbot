@@ -808,3 +808,16 @@ weclawbotctl clear
 5. 明确三屏轮播和清空照片/留言/绑定态的状态机。
 6. 让官网仿真机从公开 firmware contract 自动更新行为。
 7. 用 Hermes/OpenClaw 各做一个真实示例：定时 token 消耗卡片上屏。
+
+## 2026-07-01 Hermes 首次上屏复盘
+
+- 已复盘本机 Hermes 首次“李白诗词上屏”耗时过长和黑底白字问题，记录在
+  [hermes-first-run-skill-review.md](hermes-first-run-skill-review.md)。
+- 耗时过长的直接原因是 Hermes 多次进入需用户确认的 shell/code 工具调用，
+  未确认后 300 秒超时并重试；配对和 MQTT 在线诊断本身是成功的。
+- 黑底白字根因是本地 Hermes 自动沉淀的 `weclawbot-screen` skill 模板把
+  Pillow mode `1` 的白像素打包成 bit `1`。固件协议实际为 packed bit
+  `1=黑墨`、`0=白纸`。
+- 已修正本地 Hermes skill 模板，并在公开 OpenClaw/Hermes 插件文档和
+  `weclawbot_validate_screen_document` 中加入位语义、默认首屏视觉基线和高墨量
+  warning。普通首屏默认白底黑字，黑底/反白只在用户明确要求时使用。

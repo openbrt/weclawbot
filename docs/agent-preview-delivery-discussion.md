@@ -378,7 +378,8 @@ OpenClaw 当前 skill 机制是 lazy loading：
 
 - 服务器：100
 - OpenClaw：2026.6.10
-- WeClawBot npm 包：`@openbrt/weclawbotctl@0.1.19`
+- WeClawBot npm 包：`@openbrt/weclawbotctl@0.1.20`（原始问题在
+  `0.1.19` 上复现）
 - 插件 doctor：通过，conversation hooks enabled
 
 复现：

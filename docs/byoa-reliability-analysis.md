@@ -151,13 +151,14 @@ sequenceDiagram
   - 错误 `idle --id wrong-<id>` 被屏端拒绝为
     `activity_correlation_mismatch`
   - 正确 `idle --id <id>` 可回落并清空 activity id
-- `@openbrt/weclawbotctl@0.1.19` 已发布：
+- `@openbrt/weclawbotctl@0.1.20` 当前版本已发布：
   - `screen` 默认等待 `applied/rejected`
   - OpenClaw 插件声明 `contracts.tools`
   - 提供 `weclawbot_status`、`weclawbot_publish_screen_document`、
     `weclawbot_publish_activity`
   - 成功上屏后写入 preview manifest；OpenClaw hook 可在当前 TG/UI 会话自动回传
     PNG 效果图
+  - 明确 packed mono1 的 `1=黑墨`、`0=白纸`，并对大面积黑底发出 warning
 - OpenClaw 管理 UI 和 Telegram bot 的主要误判已定位：
   - 旧插件只确认 MQTT publish，不等屏端回执
   - 空 `base_revision` 被固件拒绝为 `stale_screen_revision`
@@ -182,6 +183,7 @@ sequenceDiagram
 | OpenClaw 环境差异 | 100 有自签证书/SAN 修复 | 其他用户可能遇到不同 gateway TLS/PATH 问题 | `openclaw doctor` 输出可操作诊断，不写死 100 路径 |
 | OpenClaw 直接任务无 thinking | `0.1.15` 用 conversation hook 自动包住提到屏幕的 turn | Telegram/UI 长程任务期间真机无反馈 | 安装器开启 hook 权限，hook 失败只降级不阻塞 agent |
 | 上屏后无效果预览 | `0.1.19` 改为 publish manifest + OpenClaw hook 确定性回传，TG 路径已初测通过；非 OpenClaw Agent 仍需自己发送 `preview.pages[].path` | 用户只能看到文字“已发送”，无法确认版式 | 预览是 Agent 的用户可见交付物；OpenClaw 用 hook 补强，其他 Agent 遵循同一交付契约 |
+| 首次上屏黑底白字 | `0.1.20` 明确 mono1 位语义，validator 对高墨量页面发 warning；Hermes 本地模板已修正 | 初次印象差，且可能被误认为固件显示问题 | skill/tool 层默认白底黑字、预览自检；不把审美策略下沉固件 |
 
 ## 建议的可靠性分层
 
