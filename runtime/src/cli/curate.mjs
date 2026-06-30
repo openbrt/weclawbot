@@ -6,9 +6,11 @@ const args = process.argv.slice(2);
 const useLegacyModel = args.includes("--model");
 const useStudent = args.includes("--student");
 const useTeacher = args.includes("--teacher") || useLegacyModel;
-const input = await readInput(args.filter((arg) => !["--model", "--student", "--teacher"].includes(arg)));
+const useLegacyRuntime = args.includes("--legacy");
+const input = await readInput(args.filter((arg) => !["--model", "--student", "--teacher", "--legacy"].includes(arg)));
 const event = parseEvent(input);
 const decision = await curateEvent(event, {
+  agentFramework: useLegacyRuntime ? "legacy" : "langgraph",
   includeTrace: true,
   models: {
     student: {

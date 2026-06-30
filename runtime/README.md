@@ -1,10 +1,16 @@
-# WeClawBot Curator Runtime
+# WeClawBot Official Agent Runtime
 
-This is the first runnable slice of the automatic sticky-note curator.
+This is the runnable core of the official WeClawBot Agent.
 
 It turns normalized WeChat events and extracted document blocks into validated
-sticky-note operations. It has no external dependencies so it can run locally,
-on the `weclawbot` host, in CI, or inside a small Tencent Cloud Function zip.
+sticky-note operations. The runtime uses a small LangGraph state graph for the
+official Agent flow while keeping the output contract constrained and
+deterministic: normalize input, select a skill, run rules, optionally route to a
+model, then validate the decision.
+
+It can run locally, on the `weclawbot` host, in CI, or inside a Tencent Cloud
+Function zip. The SCF package includes production npm dependencies from
+`package-lock.json`.
 
 ## Commands
 
@@ -12,6 +18,12 @@ on the `weclawbot` host, in CI, or inside a small Tencent Cloud Function zip.
 npm run check
 npm run eval
 npm run curate -- "明天下午三点去驿站取件，取件码 3-2156"
+```
+
+The default path uses LangGraph. To compare the pre-graph pipeline:
+
+```sh
+npm run curate -- --legacy "明天下午三点去驿站取件，取件码 3-2156"
 ```
 
 The output is a constrained decision:
@@ -46,7 +58,13 @@ without explicit opt-in.
 ## Optional Model Cascade
 
 The runtime is rules-first. Model calls are only made when explicitly enabled.
-The intended cascade is:
+The LangGraph node sequence is:
+
+```text
+normalize_event -> select_skill -> run_rules -> route_model -> validate_decision
+```
+
+The intended model cascade inside `route_model` is:
 
 ```text
 rules -> ModelScope student -> DeepSeek teacher
@@ -85,6 +103,7 @@ The SCF adapter reads these environment variables:
   `MODELSCOPE_BASE_URL`, `STUDENT_MIN_CONFIDENCE`
 - `TEACHER_ENABLED`, `DEEPSEEK_API_KEY`, `DEEPSEEK_MODEL`,
   `DEEPSEEK_BASE_URL`, `TEACHER_MIN_CONFIDENCE`
+- `WEC_AGENT_FRAMEWORK=langgraph` by default; set `legacy` only for rollback
 - `WEC_INCLUDE_TRACE`
 
 Build the deployable zip:

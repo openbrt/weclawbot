@@ -12,16 +12,19 @@ npm run --silent eval
 rm -rf "$PACKAGE_DIR" "$ZIP"
 mkdir -p "$PACKAGE_DIR"
 
-cat > "$PACKAGE_DIR/package.json" <<'JSON'
-{
-  "name": "@weclawbot/curator-scf",
-  "version": "0.1.8",
-  "private": true,
-  "engines": {
-    "node": ">=18"
-  }
-}
-JSON
+node --input-type=module - "$PACKAGE_DIR/package.json" <<'NODE'
+import { readFileSync, writeFileSync } from "node:fs";
+
+const output = process.argv[2];
+const root = JSON.parse(readFileSync("package.json", "utf8"));
+writeFileSync(output, `${JSON.stringify({
+  name: root.name,
+  version: root.version,
+  private: true,
+  engines: root.engines || { node: ">=22" },
+  dependencies: root.dependencies || {},
+}, null, 2)}\n`);
+NODE
 
 cat > "$PACKAGE_DIR/index.js" <<'JS'
 exports.main_handler = async function main_handler(event, context) {
@@ -33,11 +36,14 @@ JS
 cp "$ROOT/README.md" "$PACKAGE_DIR/README.md"
 cp -R "$ROOT/src" "$PACKAGE_DIR/src"
 cp -R "$ROOT/skills" "$PACKAGE_DIR/skills"
+cp "$ROOT/package-lock.json" "$PACKAGE_DIR/package-lock.json"
 cat > "$PACKAGE_DIR/src/package.json" <<'JSON'
 {
   "type": "module"
 }
 JSON
+
+(cd "$PACKAGE_DIR" && npm ci --omit=dev --ignore-scripts --no-audit --no-fund)
 
 find "$PACKAGE_DIR" -name ".DS_Store" -delete
 

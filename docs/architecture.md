@@ -8,7 +8,7 @@ flowchart TD
   T -- "Local command" --> L["Handle locally"]
   T -- "Text/voice/file event" --> M["MQTT/WSS event topic"]
   M --> O["Gateway routing + pairing"]
-  O --> A["Official Agent"]
+  O --> A["Official Agent\nLangGraph runtime"]
   U["BYOA/user Agent"] --> D
   A --> K{"Need a skill?"}
   K -- "No" --> D{"Screen intent"}
@@ -42,7 +42,10 @@ The normal production curator is no longer modeled as a single isolated cloud
 function. Negotiating what should appear on the screen requires conversation
 state: current draft, pending confirmation, the active screen note, user
 corrections, and clear/replace intent. That lifecycle belongs to an Agent
-behind the gateway.
+behind the gateway. The first public implementation of that official Agent
+runtime uses a pinned LangGraph flow so the path is observable but still
+bounded: normalize event, select skill, run rules, optionally route to a model,
+and validate the decision.
 
 Cloud functions remain important, but as low-cost skill execution units behind
 that Agent. A function may classify text, extract a file, render a screen

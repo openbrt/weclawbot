@@ -37,6 +37,7 @@ export async function main_handler(event) {
 
 export function runtimeOptionsFromEnv(env = process.env) {
   return {
+    agentFramework: env.WEC_AGENT_FRAMEWORK || "langgraph",
     includeTrace: envFlag(env, "WEC_INCLUDE_TRACE", false),
     models: {
       student: {
@@ -144,6 +145,7 @@ function routeSummary(options) {
       min_confidence: teacher.minConfidence,
       has_key: Boolean(teacher.apiKey),
     } : { enabled: false },
+    framework: options.agentFramework || "langgraph",
   };
 }
 

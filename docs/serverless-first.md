@@ -10,7 +10,8 @@ agent service.
 flowchart LR
   W["WeChat text"] --> E["ESP32 receives and queues event"]
   E --> F["Invoke curator cloud function"]
-  F --> R{"Deterministic rules"}
+  F --> G["LangGraph official Agent flow"]
+  G --> R{"Deterministic rules"}
   R -- "Certain" --> O["Return decision"]
   R -- "Uncertain" --> M["Call routed model"]
   M --> O
@@ -56,7 +57,9 @@ workflow requires it.
 
 ## Skill Packaging
 
-The curator behavior is maintained as a versioned skill containing:
+The official Agent runtime is a small LangGraph state graph that executes a
+pinned skill and validates the result. Curator behavior is maintained as a
+versioned skill containing:
 
 - request and response schemas;
 - deterministic rules;

@@ -18,13 +18,16 @@ arbitrary code generated from a user message.
 
 | Function | Build target | Reason |
 | --- | --- | --- |
-| Text curator | Zip from local, CI, or `weclawbot` | Pure Node.js/TypeScript, small package |
+| Text curator | Zip from local, CI, or `weclawbot` | Pure Node.js runtime with LangGraph dependency bundled from lockfile |
 | Voice transcript curator | Zip from local, CI, or `weclawbot` | Uses WeChat `voice_item.text`, no audio decoder |
 | Image OCR | Linux CI or container image | OCR engines and image libraries often include native binaries |
 | PDF extractor | Linux CI initially; image if native tools grow | Embedded-text extraction can be pure JS, OCR needs native tools |
 | DOCX / PPTX / XLSX / CSV | Linux CI or `weclawbot`; image if conversion tools are needed | OOXML parsing can be pure JS, Office conversion is native-heavy |
 
-The first shipping artifact should be a small zip package for the text curator.
+The first shipping artifact should be a zip package for the text curator. As of
+runtime `0.1.9`, the package includes `@langchain/langgraph` and production
+dependencies inside the zip so SCF does not depend on online install at cold
+start.
 Attachment functions can move to container image deployment only when zip +
 layers become awkward.
 
@@ -66,8 +69,8 @@ The build should be reproducible:
 1. Install exact dependencies from the lockfile.
 2. Run unit tests and JSON schema tests.
 3. Run skill regression fixtures.
-4. Compile TypeScript to plain JavaScript.
-5. Remove dev dependencies.
+4. Copy runtime source and skills.
+5. Install production dependencies from `package-lock.json`.
 6. Create a zip with the entry file at the package root.
 7. Optionally deploy with Tencent CLI or Serverless Cloud Framework.
 

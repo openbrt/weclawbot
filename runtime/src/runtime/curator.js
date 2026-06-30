@@ -1,4 +1,5 @@
 import { eventToBundle } from "./adapters.js";
+import { curateEventWithLangGraph } from "./langgraph-agent.js";
 import { maybeRouteToModel } from "./model-router.js";
 import { validateDecision } from "./validate.js";
 import { stickyCoreSkill } from "../skills/sticky-core.js";
@@ -6,6 +7,13 @@ import { stickyCoreSkill } from "../skills/sticky-core.js";
 const DEFAULT_SKILLS = [stickyCoreSkill];
 
 export async function curateEvent(event, options = {}) {
+  if (options.useLangGraph !== false && options.agentFramework !== "legacy") {
+    return curateEventWithLangGraph(event, options);
+  }
+  return curateEventLegacy(event, options);
+}
+
+export async function curateEventLegacy(event, options = {}) {
   const bundle = eventToBundle(event);
   const skill = selectSkill(bundle, options.skills || DEFAULT_SKILLS);
   const ruleDecision = await skill.curate(bundle, options);

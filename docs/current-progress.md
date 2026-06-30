@@ -94,12 +94,35 @@ WeClawBot / 微笺屏是基于 Waveshare ESP32-S3-RLCD-4.2 的开源固件项目
 
 当前结论：
 
+- 官方智能体 runtime 已切到 LangGraph 编排，公开实现在 `runtime/`：
+  `normalize_event -> select_skill -> run_rules -> route_model -> validate_decision`。
+  它不是开放式工具 Agent，仍只输出受限 note/reply 决策。
 - 不再把“小模型 + 大模型 + COS 规则沉淀”作为唯一主路径。
 - 官方智能体可以继续服务普通用户，但高级用户必须能带自己的 Agent。
 - 网关只负责连接、配对、路由、鉴权、低成本在线通道；普通官方模式下
   微信消息由设备通过 MQTT/WSS 发布给官方 Agent，而不是长期走可配置
   HTTP URL。BYOA 配对后微信入口不再进入控制面。
 - 内容理解、排版策略和个性化行为应尽量交给用户选择的 Agent。
+
+### 2026-07-01 官方智能体 LangGraph runtime
+
+- 已安装 `@langchain/langgraph@1.4.7`，`runtime` 版本提升到 `0.1.9`。
+- 新增 `runtime/src/runtime/langgraph-agent.js`，默认 `curateEvent()` 走
+  LangGraph；`--legacy` 或 `agentFramework=legacy` 可回退旧流水线。
+- SCF 打包脚本现在从 `package-lock.json` 安装生产依赖并把
+  `node_modules/@langchain/langgraph` 打进 zip，避免线上冷启动缺包。
+- 本地验证：`npm run check`、`npm run eval` 均通过；SCF zip 解包后可通过
+  `index.js` 调用 `main_handler`。
+- 官方 Agent E2E 已通过三段验证：
+  - 本地 LangGraph runtime：`wechat_text` -> `create_note`，日志显示
+    `framework=langgraph`。
+  - SCF zip 解包 smoke：在 `/tmp/weclawbot-scf-test` 中调用 `index.js`
+    的 `main_handler`，返回 `create_note`。
+  - 公网黑盒 MQTT：模拟 official device `off_e2e_mr12eeo4` 调用
+    `https://weclawbot.link/gateway` bootstrap，连接
+    `wss://weclawbot.link/mqtt`，发布 `wechat_text` 后收到
+    `screen_intent`，包含 1 页 `screen_document.target=content` 和
+    微信回复，并已回发模拟 `applied` status。
 
 ## BYOA / Agent 直控
 

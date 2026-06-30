@@ -1,4 +1,5 @@
 export { curateEvent } from "./runtime/curator.js";
+export { curateEventWithLangGraph, officialAgentGraph } from "./runtime/langgraph-agent.js";
 export { eventToBundle } from "./runtime/adapters.js";
 export { validateDecision } from "./runtime/validate.js";
 export { stickyCoreSkill } from "./skills/sticky-core.js";
