@@ -163,7 +163,8 @@ Agent 要快速演进：
 公开仓库不能包含官方云端部署代码、私有网关日志、微信 token、Wi-Fi 密码、
 模型 API key、MQTT broker 管理密钥、腾讯云资源 ID、用户原始数据或私有提示词。
 
-发布前先读 [docs/public-release-boundary.md](docs/public-release-boundary.md)。
+发布前先读 [docs/public-release-boundary.md](docs/public-release-boundary.md)，
+并执行 [docs/project-release-checklist.md](docs/project-release-checklist.md)。
 
 ## 链接
 

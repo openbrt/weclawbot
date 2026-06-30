@@ -34,6 +34,7 @@ WeClawBot / 微笺屏是基于 Waveshare ESP32-S3-RLCD-4.2 的开源固件项目
 - [official-site-firmware-sync.md](official-site-firmware-sync.md)
 - [open-firmware-privacy-boundary.md](open-firmware-privacy-boundary.md)
 - [public-release-boundary.md](public-release-boundary.md)
+- [project-release-checklist.md](project-release-checklist.md)
 - [npm-distribution.md](npm-distribution.md)
 
 ## 固件当前状态
@@ -695,6 +696,10 @@ Canonical 发布边界见
 [public-release-boundary.md](public-release-boundary.md)。后续任何 agent 或
 同学在 `openbrt/weclawbot` 上 staging、commit、push、tag 或 release 前都
 应先按该文档检查，不再依赖临场口头提醒。
+实际发布执行清单见
+[project-release-checklist.md](project-release-checklist.md)：安装/配置页、
+manifest、release 资产、Pages、固件二进制、项目文案和真机烟测都必须按
+适用项核对。
 
 公开仓库只应包含：
 

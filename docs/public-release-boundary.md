@@ -3,6 +3,8 @@
 This is the canonical boundary for publishing `openbrt/weclawbot`.
 Read it before staging, committing, pushing, tagging, or building a public
 release. Treat the local workspace as mixed public/private by default.
+Use [project-release-checklist.md](project-release-checklist.md) as the
+required execution checklist for each release.
 
 If a file is not clearly inside the public boundary, do not publish it.
 
@@ -96,3 +98,7 @@ Before pushing to `openbrt/weclawbot`:
 
 When in doubt, leave the file out and document the missing public artifact
 instead of publishing mixed private state.
+
+For full release completion checks, including GitHub Release assets, Pages
+manifest, installer firmware, project copy, and optional true-device smoke
+tests, follow [project-release-checklist.md](project-release-checklist.md).

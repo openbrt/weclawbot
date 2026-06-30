@@ -173,7 +173,8 @@ WeChat tokens, Wi-Fi passwords, model API keys, MQTT broker admin credentials,
 Tencent Cloud resource IDs, raw user data, or private prompts.
 
 Before publishing, read
-[`docs/public-release-boundary.md`](docs/public-release-boundary.md).
+[`docs/public-release-boundary.md`](docs/public-release-boundary.md) and run
+[`docs/project-release-checklist.md`](docs/project-release-checklist.md).
 
 ## Links
 
