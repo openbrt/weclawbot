@@ -24,11 +24,14 @@ public:
     void ShowWifi(const char* ssid, const char* status);
     void ShowQr(const char* qr_url, int seconds_left);
     void ShowQrStatus(const char* status, int seconds_left);
+    void ShowAgentPairingCode(const char* code, int seconds_left = 600);
+    void ShowAgentDashboard(const char* detail = "智能体已接管");
     void ShowLoginSuccess();
     void ShowUsbConfig(const char* status);
     void ShowIdleHome(const char* status, const char* footer);
     void ShowThinking(const char* status, const char* footer);
     void ShowNotes(const std::vector<Note>& notes, size_t index);
+    bool ShowNotePage(const std::vector<Note>& notes, size_t index, size_t page);
     bool ShowNextNotePage(const std::vector<Note>& notes, size_t index);
     bool ShowPreviousNotePage(const std::vector<Note>& notes, size_t index);
     void ShowEmptyNotes();
@@ -39,6 +42,7 @@ public:
     void SetEnvironment(float temperature_c, float humidity_percent, bool valid);
     void SetNetworkStatus(bool connected);
     void SetBatteryStatus(bool present, int percent);
+    void SetUsbHostPowerStatus(bool connected);
     void Tick();
 
     bool ScreensaverActive() const { return screensaver_active_; }
@@ -46,6 +50,7 @@ public:
     UiDashboardView DashboardView() const;
     size_t NotePage() const { return note_page_; }
     size_t NotePageCount() const { return note_page_count_; }
+    size_t NotePageCountFor(const Note& note) const;
     int64_t ScreensaverStartedAt() const { return screensaver_started_at_; }
     void SetScreensaverActive(bool active) {
         screensaver_active_ = active;
@@ -55,6 +60,12 @@ public:
     }
 
 private:
+    enum class CalendarOverlay {
+        kNone,
+        kAgentPairing,
+        kAgentDashboard,
+    };
+
     void ClearLocked();
     void ReleaseQrAssets();
     void ReleaseContentAssets();
@@ -67,8 +78,10 @@ private:
                             int x,
                             int y);
     void ShowCalendarHomeLocked(const char* header_detail = "",
-                                const char* footer = "微信发送文字、清单或照片即可上屏",
-                                bool thinking = false);
+                                const char* footer = "等待内容上屏",
+                                bool thinking = false,
+                                bool show_pet = true);
+    void RenderCalendarOverlayLocked();
     void UpdateStatusLabelsLocked();
     void UpdateNetworkIndicatorLocked();
     void DrawCalendarLocked(const std::tm& tm);
@@ -79,7 +92,9 @@ private:
                           lv_color_t color, int x, int y, int w);
     std::string NowString(const char* fallback = "--:--") const;
     void UpdateBatteryIndicatorLocked();
+    void UpdateUsbHostPowerIndicatorLocked();
     void ClearPlugIndicatorLocked();
+    void ClearUsbHostPowerIndicatorLocked();
 
     RlcdDisplay& display_;
     bool screensaver_active_ = false;
@@ -90,10 +105,15 @@ private:
     bool network_connected_ = false;
     bool battery_present_ = false;
     bool battery_status_known_ = false;
+    bool usb_host_power_connected_ = false;
     int battery_percent_ = 0;
     bool calendar_time_ready_ = false;
     bool calendar_thinking_ = false;
+    bool calendar_pet_visible_ = true;
     bool qr_calendar_active_ = false;
+    CalendarOverlay calendar_overlay_ = CalendarOverlay::kNone;
+    std::string calendar_overlay_text_;
+    std::string calendar_overlay_detail_;
     float temperature_c_ = 0.0f;
     float humidity_percent_ = 0.0f;
     size_t note_page_ = 0;
@@ -114,6 +134,7 @@ private:
     lv_obj_t* battery_fill_ = nullptr;
     lv_obj_t* battery_mark_label_ = nullptr;
     lv_obj_t* plug_parts_[5] = {};
+    lv_obj_t* usb_power_parts_[4] = {};
     lv_obj_t* footer_label_ = nullptr;
     lv_obj_t* home_time_label_ = nullptr;
     lv_obj_t* home_time_shadow_label_ = nullptr;

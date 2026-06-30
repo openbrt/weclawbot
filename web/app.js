@@ -7,6 +7,7 @@ const ui = {
   reboot: document.querySelector("#reboot-button"),
   clearWifi: document.querySelector("#clear-wifi-button"),
   clearWechat: document.querySelector("#clear-wechat-button"),
+  clearAgent: document.querySelector("#clear-agent-button"),
   clearNotes: document.querySelector("#clear-notes-button"),
   clearConsole: document.querySelector("#clear-console-button"),
   serialHelp: document.querySelector("#serial-help"),
@@ -15,11 +16,9 @@ const ui = {
   password: document.querySelector("#password-input"),
   passwordToggle: document.querySelector("#password-toggle"),
   curatorUrl: document.querySelector("#curator-url-input"),
-  aiProvider: document.querySelector("#ai-provider-select"),
-  aiToken: document.querySelector("#ai-token-input"),
-  aiTokenToggle: document.querySelector("#ai-token-toggle"),
-  aiEndpoint: document.querySelector("#ai-endpoint-input"),
-  aiModel: document.querySelector("#ai-model-input"),
+  modeOfficial: document.querySelector("#agent-mode-official"),
+  modeByoa: document.querySelector("#agent-mode-byoa"),
+  modeHelp: document.querySelector("#agent-mode-help"),
   console: document.querySelector("#console-output"),
   deviceName: document.querySelector("#device-name"),
   wifiState: document.querySelector("#wifi-state"),
@@ -41,6 +40,36 @@ let statusTimer = null;
 let quietStatusResponse = false;
 const encoder = new TextEncoder();
 const maxConsoleLines = 240;
+const defaultGatewayUrl = "https://weclawbot.link/gateway";
+const byoaGatewayUrl = "https://weclawbot.link/byoa";
+let currentAgentMode = "official";
+let agentModeDirty = false;
+let rebootAfterSave = false;
+let knownWifiConfigured = false;
+let knownWifiSsid = "";
+
+function agentModeForUrl(url) {
+  return url === byoaGatewayUrl ? "byoa" : "official";
+}
+
+function setAgentMode(mode, { syncUrl = true, dirty = false } = {}) {
+  const custom = mode === "byoa";
+  currentAgentMode = custom ? "byoa" : "official";
+  if (dirty) {
+    agentModeDirty = true;
+  }
+  ui.modeOfficial.classList.toggle("is-selected", !custom);
+  ui.modeOfficial.setAttribute("aria-pressed", String(!custom));
+  ui.modeByoa.classList.toggle("is-selected", custom);
+  ui.modeByoa.setAttribute("aria-pressed", String(custom));
+  ui.modeHelp.textContent = custom
+    ? "保存并重启后，屏幕显示六位绑定码；在你的 Agent 中安装 weclawbotctl 并输入该码配对。"
+    : "保存并重启后，屏幕显示微信二维码；扫码即可由 WeClawBot 官方智能体处理并上屏。";
+  if (syncUrl) {
+    const url = custom ? byoaGatewayUrl : defaultGatewayUrl;
+    ui.curatorUrl.value = url;
+  }
+}
 
 function setConnected(connected) {
   ui.serialState.textContent = connected ? "已连接" : "未连接";
@@ -51,6 +80,7 @@ function setConnected(connected) {
   ui.reboot.disabled = !connected;
   ui.clearWifi.disabled = !connected;
   ui.clearWechat.disabled = !connected;
+  ui.clearAgent.disabled = !connected;
   ui.clearNotes.disabled = !connected;
 }
 
@@ -106,7 +136,21 @@ function applyMessage(message) {
     return;
   }
 
+  if (message.type === "set") {
+    setStatus(message.message || "配置已保存");
+    agentModeDirty = false;
+    if (rebootAfterSave) {
+      rebootAfterSave = false;
+      window.setTimeout(() => {
+        sendCommand("REBOOT").catch(showSerialError);
+      }, 250);
+    }
+    return;
+  }
+
   if (message.type === "config") {
+    knownWifiConfigured = Boolean(message.wifi_configured);
+    knownWifiSsid = message.wifi_ssid || "";
     ui.deviceName.textContent = displayValue(message.board || message.name);
     ui.firmwareVersion.textContent = displayValue(message.version);
     ui.wifiState.textContent = message.wifi_configured
@@ -115,30 +159,47 @@ function applyMessage(message) {
         }`
       : "未配置";
     ui.ipAddress.textContent = displayValue(message.ip);
-    ui.curatorState.textContent = message.curator_enabled
-      ? `${message.ai_provider || "weclawbot"} / ${
-          message.ai_token_configured ? "token 已保存" : "无 token"
-        }`
-      : "未配置";
+    const currentGateway = message.curator_url || defaultGatewayUrl;
+    const currentMode = message.agent_mode || agentModeForUrl(currentGateway);
+    if (!message.curator_enabled) {
+      ui.curatorState.textContent = "未配置";
+    } else if (currentMode === "byoa") {
+      const pairingLeft = message.agent_pairing_seconds_left > 0
+        ? `（有效期 ${Math.floor(message.agent_pairing_seconds_left / 60)}:${String(message.agent_pairing_seconds_left % 60).padStart(2, "0")}）`
+        : "";
+      ui.curatorState.textContent = message.agent_paired
+        ? message.agent_mqtt_connected
+          ? `自定义智能体 / 已接管${message.agent_last_status_kind ? ` / ${message.agent_last_status_kind}` : ""}`
+          : "自定义智能体 / 已配对，正在重连"
+        : message.agent_pairing_code
+          ? `自定义智能体 / 绑定码 ${message.agent_pairing_code}${pairingLeft}`
+          : "自定义智能体 / 正在准备绑定";
+    } else {
+      ui.curatorState.textContent = message.agent_mqtt_connected
+        ? "官方云端 / 通道在线"
+        : message.agent_paired
+          ? "官方云端 / 正在重连"
+          : "官方云端 / 正在准备";
+    }
     const qrTime = message.wechat_qr_seconds_left > 0
       ? ` (${Math.floor(message.wechat_qr_seconds_left / 60)}:${String(message.wechat_qr_seconds_left % 60).padStart(2, "0")})`
       : "";
-    ui.wechatState.textContent = `${message.wechat_state || (message.wechat_connected ? "已连接" : "未连接")}${qrTime}`;
-    ui.noteState.textContent = message.note_count ? "有内容" : "无内容";
+    ui.wechatState.textContent = currentMode === "byoa"
+      ? "配对码入口 / 微信忽略"
+      : `微信扫码入口 / ${message.wechat_state || (message.wechat_connected ? "已连接" : "未连接")}${qrTime}`;
+    if (message.note_count) {
+      const revision = message.screen_revision ? ` / ${message.screen_revision.slice(0, 8)}` : "";
+      ui.noteState.textContent = `有内容${revision}`;
+    } else {
+      ui.noteState.textContent = "无内容";
+    }
     if (message.wifi_ssid && !ui.ssid.value) {
       ui.ssid.value = message.wifi_ssid;
     }
-    if (document.activeElement !== ui.curatorUrl) {
-      ui.curatorUrl.value = message.curator_url || "";
-    }
-    if (ui.aiProvider && document.activeElement !== ui.aiProvider) {
-      ui.aiProvider.value = message.ai_provider || "weclawbot";
-    }
-    if (ui.aiEndpoint && document.activeElement !== ui.aiEndpoint) {
-      ui.aiEndpoint.value = message.ai_endpoint || "";
-    }
-    if (ui.aiModel && document.activeElement !== ui.aiModel) {
-      ui.aiModel.value = message.ai_model || "";
+    ui.password.placeholder = message.wifi_configured ? "已保存，留空不修改" : "Password";
+    if (!agentModeDirty && document.activeElement !== ui.curatorUrl) {
+      ui.curatorUrl.value = currentGateway;
+      setAgentMode(currentMode, { syncUrl: false });
     }
     return;
   }
@@ -306,24 +367,22 @@ async function saveWifi(event) {
   event.preventDefault();
   const ssid = ui.ssid.value.trim();
   const password = ui.password.value;
-  const curator_url = ui.curatorUrl.value.trim();
-  const ai_provider = ui.aiProvider.value || "weclawbot";
-  const ai_token = ui.aiToken.value;
-  const ai_endpoint = ui.aiEndpoint.value.trim();
-  const ai_model = ui.aiModel.value.trim();
-  if (!ssid && !curator_url && !ai_provider && !ai_endpoint && !ai_model && !ai_token) {
+  const wifiNeedsSave = Boolean(password) || !knownWifiConfigured || (ssid && ssid !== knownWifiSsid);
+  if (wifiNeedsSave && !ssid) {
+    appendConsole("error", "请输入 Wi-Fi 名称");
+    ui.ssid.focus();
+    return;
+  }
+  if (!wifiNeedsSave && !currentAgentMode) {
     appendConsole("error", "至少填写一项配置");
     ui.ssid.focus();
     return;
   }
 
-  const payload = { curator_url, ai_provider, ai_endpoint, ai_model };
-  if (ssid) {
+  const payload = { agent_mode: currentAgentMode };
+  if (wifiNeedsSave) {
     payload.ssid = ssid;
     payload.password = password;
-  }
-  if (ai_token) {
-    payload.ai_token = ai_token;
   }
   const command = `SET ${JSON.stringify(payload)}`;
   const masked = `SET ${JSON.stringify({
@@ -331,11 +390,8 @@ async function saveWifi(event) {
     password: payload.password ? "********" : "",
     ai_token: payload.ai_token ? "********" : undefined,
   })}`;
+  rebootAfterSave = true;
   await sendCommand(command, masked);
-  if (ui.aiToken.value) {
-    ui.aiToken.value = "";
-    ui.aiToken.placeholder = "token 已发送保存；留空表示不修改";
-  }
 }
 
 async function confirmAndSend(message, command) {
@@ -366,6 +422,9 @@ ui.clearWifi.addEventListener("click", () => {
 ui.clearWechat.addEventListener("click", () => {
   confirmAndSend("清除设备上的微信登录状态？", "CLEAR_WECHAT").catch((error) => appendConsole("error", error.message));
 });
+ui.clearAgent.addEventListener("click", () => {
+  confirmAndSend("解绑当前自定义智能体？", "CLEAR_AGENT").catch((error) => appendConsole("error", error.message));
+});
 ui.clearNotes.addEventListener("click", () => {
   confirmAndSend("清除屏幕上的当前微笺？", "CLEAR_NOTES").catch((error) => appendConsole("error", error.message));
 });
@@ -387,21 +446,12 @@ function bindSecretToggle(input, button, showTitle, hideTitle) {
   });
 }
 bindSecretToggle(ui.password, ui.passwordToggle, "显示密码", "隐藏密码");
-bindSecretToggle(ui.aiToken, ui.aiTokenToggle, "显示 token", "隐藏 token");
-
-ui.aiProvider.addEventListener("change", () => {
-  if (ui.aiProvider.value === "weclawbot") {
-    ui.aiToken.placeholder = "WeClawBot 托管模式可留空";
-  } else {
-    ui.aiToken.placeholder = "填自己的 API key / access token";
-  }
-  if (window.lucide) {
-    window.lucide.createIcons();
-  }
-});
+ui.modeOfficial.addEventListener("click", () => setAgentMode("official", { dirty: true }));
+ui.modeByoa.addEventListener("click", () => setAgentMode("byoa", { dirty: true }));
 
 window.addEventListener("DOMContentLoaded", () => {
   setConnected(false);
+  setAgentMode("official");
   if (window.lucide) {
     window.lucide.createIcons();
   }

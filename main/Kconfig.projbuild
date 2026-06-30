@@ -17,11 +17,13 @@ config WEC_WECHAT_BASE_URL
     default "https://ilinkai.weixin.qq.com"
 
 config WEC_CURATOR_URL
-    string "WeClawBot curator HTTP URL"
-    default "https://weclawbot.link/api/curator"
+    string "Legacy WeClawBot HTTP adapter URL"
+    default "https://weclawbot.link/gateway"
     help
-        Optional HTTP endpoint for the Curator Skill Runtime. When empty, text
-        messages are stored locally without cloud curation.
+        Legacy HTTP endpoint used by the current transition firmware. The next
+        product path uses official/custom Agent mode plus the built-in MQTT/WSS
+        gateway instead of asking users to configure a curator URL.
+        When empty, text messages are stored locally without cloud curation.
 
 config WEC_POLL_INTERVAL_MS
     int "WeChat getupdates poll interval"
@@ -88,5 +90,24 @@ config WEC_BATTERY_INSTALLED
         BAT_ADC reads the board power path through a divider. On USB power it
         can still report a lithium-like voltage even when no 18650 cell is
         installed, so keep this disabled for boards running without a battery.
+
+config WEC_TEMPERATURE_OFFSET_DECIC
+    int "SHTC3 temperature offset in 0.1 Celsius"
+    default 0
+    range -100 100
+    help
+        Calibration offset applied after reading the onboard SHTC3 sensor.
+        Use tenths of a Celsius degree: -8 means display 0.8 C lower.
+        Keep this at 0 unless the board has a stable offset against a trusted
+        nearby room thermometer after warming up for at least 20 minutes.
+
+config WEC_HUMIDITY_OFFSET_PERCENT
+    int "SHTC3 humidity offset in percentage points"
+    default 0
+    range -50 50
+    help
+        Calibration offset applied after reading the onboard SHTC3 sensor.
+        Use whole relative-humidity percentage points: -3 means display 3%
+        lower. The final value is clamped to 0..100%.
 
 endmenu

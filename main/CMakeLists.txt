@@ -1,5 +1,6 @@
 set(SOURCES
     "app_main.cc"
+    "agent_mqtt.cc"
     "battery_monitor.cc"
     "button_manager.cc"
     "button_wrapper.cc"
@@ -49,6 +50,7 @@ idf_component_register(
         esp_netif
         esp_wifi
         esp_http_client
+        mqtt
         esp_timer
         esp_psram
         esp_driver_gpio

@@ -1,0 +1,17 @@
+{
+  "name": "@weclawbot/curator-runtime",
+  "version": "0.1.8",
+  "private": true,
+  "type": "module",
+  "description": "WeClawBot Curator Skill Runtime for turning WeChat content into sticky-note operations.",
+  "scripts": {
+    "curate": "node src/cli/curate.mjs",
+    "eval": "node src/cli/eval.mjs eval/sticky-core.jsonl",
+    "precipitate": "node src/cli/precipitate.mjs",
+    "check": "node --check src/index.js && node --check src/cli/curate.mjs && node --check src/cli/eval.mjs && node --check src/cli/precipitate.mjs && node --check src/adapters/tencent-scf.js && node --check src/models/deepseek.js && node --check src/models/chat-curator.js && node --check src/runtime/model-router.js && node --check src/runtime/skill-library.js && node --check src/runtime/precipitation.js",
+    "package:scf": "bash scripts/package-scf.sh"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}

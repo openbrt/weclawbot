@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstddef>
 #include <memory>
 
 #include "button_wrapper.h"
@@ -19,6 +20,13 @@ private:
     void HandleLeftLongPress();
     void HandleRightShortPress();
     void HandleRightLongPress();
+    void ShowPreviousManualScreen();
+    void ShowNextManualScreen();
+    bool ShowCalendar();
+    bool ShowPhoto();
+    bool ShowNotePage(size_t page);
+    bool ShowLastNotePage();
+    size_t ManualNotePageCount() const;
     void RenderCurrentOrEmpty();
     void ClearTextNotes();
     void ClearAllAndRelogin();

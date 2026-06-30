@@ -10,6 +10,7 @@
 
 #include <cJSON.h>
 #include <driver/gpio.h>
+#include <esp_heap_caps.h>
 #include <esp_log.h>
 #include <esp_timer.h>
 #include <esp_system.h>
@@ -41,6 +42,10 @@ namespace {
 constexpr char kTag[] = "SerialConfig";
 constexpr size_t kLineBufferSize = 1536;
 constexpr char kCuratorUrlKey[] = "curator_url";
+constexpr char kOfficialAgentMode[] = "official";
+constexpr char kByoaAgentMode[] = "byoa";
+constexpr char kOfficialCuratorUrl[] = CONFIG_WEC_CURATOR_URL;
+constexpr char kByoaCuratorUrl[] = "https://weclawbot.link/byoa";
 constexpr char kAiProviderKey[] = "ai_provider";
 constexpr char kAiTokenKey[] = "ai_token";
 constexpr char kAiEndpointKey[] = "ai_endpoint";
@@ -85,8 +90,36 @@ std::string JsonString(const cJSON* root, const char* key) {
     return cJSON_IsString(item) ? item->valuestring : "";
 }
 
+const char* DashboardViewName(UiDashboardView view) {
+    switch (view) {
+        case UiDashboardView::kCalendar:
+            return "calendar";
+        case UiDashboardView::kPhoto:
+            return "photo";
+        case UiDashboardView::kNote:
+            return "note";
+        case UiDashboardView::kOther:
+            return "other";
+    }
+    return "other";
+}
+
 bool LooksLikeHttpUrl(const std::string& value) {
     return value.empty() || value.rfind("https://", 0) == 0 || value.rfind("http://", 0) == 0;
+}
+
+const char* AgentModeForCuratorUrl(const std::string& value) {
+    return value == kByoaCuratorUrl ? kByoaAgentMode : kOfficialAgentMode;
+}
+
+std::string CuratorUrlForAgentMode(const std::string& value) {
+    if (value == kOfficialAgentMode) {
+        return kOfficialCuratorUrl;
+    }
+    if (value == kByoaAgentMode) {
+        return kByoaCuratorUrl;
+    }
+    return "";
 }
 
 std::string ReadConfigString(const char* key, const char* fallback = "") {
@@ -290,7 +323,7 @@ void GpioScanTask(void* arg) {
 
 bool SerialConfig::Start() {
     InstallChannels();
-    BaseType_t ok = xTaskCreate(TaskThunk, "serial_config", 12288, this, 4, nullptr);
+    BaseType_t ok = xTaskCreate(TaskThunk, "serial_config", 8192, this, 4, nullptr);
     if (ok != pdPASS) {
         ESP_LOGE(kTag, "xTaskCreate failed");
         return false;
@@ -457,8 +490,15 @@ void SerialConfig::HandleLine(const char* line) {
 
     if (input == "CLEAR_WECHAT") {
         bot_.ClearSavedCredentials();
-        ui_.ShowUsbConfig("微信登录状态已清除");
+        ui_.ShowUsbConfig(bot_.WechatIngressEnabled() ? "微信登录状态已清除" : "微信入口未启用");
         SendOk("clear_wechat");
+        return;
+    }
+
+    if (input == "CLEAR_AGENT") {
+        bot_.ClearAgentCredentials();
+        ui_.ShowUsbConfig("智能体绑定已清除");
+        SendOk("clear_agent");
         return;
     }
 
@@ -466,6 +506,8 @@ void SerialConfig::HandleLine(const char* line) {
         notes_.ClearAll();
         if (const Note* photo = notes_.IdlePhoto()) {
             ui_.ShowIdlePhoto(*photo);
+        } else if (bot_.UsesCustomAgent() && bot_.AgentPaired()) {
+            ui_.ShowAgentDashboard();
         } else {
             ui_.ShowEmptyNotes();
         }
@@ -495,6 +537,46 @@ void SerialConfig::HandleLine(const char* line) {
             SendOk("curate_test_done", "云端整理完成并已尝试上屏");
         } else {
             SendError("curate_test_failed", "云端整理或上屏失败");
+        }
+        return;
+    }
+
+    if (input.rfind("WECHAT_TEST ", 0) == 0) {
+        std::string text = Trim(input.substr(12));
+        if (text.empty()) {
+            SendError("empty_text", "测试文本不能为空");
+            return;
+        }
+        if (!bot_.WechatIngressEnabled()) {
+            SendOk("wechat_test_ignored", "BYOA 模式忽略微信入口");
+            return;
+        }
+        SendOk("wechat_test", "正在模拟微信文本入口");
+        const bool ok = bot_.WechatLoopbackText(text.c_str());
+        if (ok) {
+            SendOk("wechat_test_done", "微信文本入口已触发");
+        } else {
+            SendError("wechat_test_failed", "微信文本入口触发失败");
+        }
+        return;
+    }
+
+    if (input.rfind("WECHAT_IMAGE_TEST ", 0) == 0) {
+        std::string url = Trim(input.substr(18));
+        if (url.empty()) {
+            SendError("empty_url", "测试图片 URL 不能为空");
+            return;
+        }
+        if (!bot_.WechatIngressEnabled()) {
+            SendOk("wechat_image_test_ignored", "BYOA 模式忽略微信入口");
+            return;
+        }
+        SendOk("wechat_image_test", "正在模拟微信图片入口");
+        const bool ok = bot_.WechatLoopbackImage(url.c_str());
+        if (ok) {
+            SendOk("wechat_image_test_done", "微信图片入口已触发");
+        } else {
+            SendError("wechat_image_test_failed", "微信图片入口触发失败");
         }
         return;
     }
@@ -581,19 +663,78 @@ void SerialConfig::SendStatus() {
     std::string ai_token = ReadConfigString(kAiTokenKey, "");
     cJSON_AddBoolToObject(root, "curator_enabled", !curator_url.empty());
     cJSON_AddStringToObject(root, "curator_url", curator_url.c_str());
+    cJSON_AddStringToObject(root, "agent_mode", AgentModeForCuratorUrl(curator_url));
     cJSON_AddStringToObject(root, "ai_provider", ai_provider.c_str());
     cJSON_AddBoolToObject(root, "ai_token_configured", !ai_token.empty());
     cJSON_AddStringToObject(root, "ai_endpoint", ai_endpoint.c_str());
     cJSON_AddStringToObject(root, "ai_model", ai_model.c_str());
+    cJSON_AddBoolToObject(root, "custom_agent_mode", bot_.UsesCustomAgent());
+    cJSON_AddBoolToObject(root, "agent_paired", bot_.AgentPaired());
+    cJSON_AddBoolToObject(root, "agent_mqtt_connected", bot_.AgentMqttConnected());
+    cJSON_AddStringToObject(root, "agent_transport_state", bot_.AgentTransportState());
+    cJSON_AddBoolToObject(root, "agent_events_topic_configured", bot_.AgentEventsTopicConfigured());
+    cJSON_AddBoolToObject(root, "agent_status_topic_configured", bot_.AgentStatusTopicConfigured());
+    const std::string agent_device_id = bot_.AgentDeviceId();
+    cJSON_AddStringToObject(root, "agent_device_id", agent_device_id.c_str());
+    cJSON_AddStringToObject(root, "agent_pairing_code", bot_.AgentPairingCode());
+    cJSON_AddNumberToObject(root, "agent_pairing_seconds_left", bot_.AgentPairingSecondsLeft());
+    cJSON_AddStringToObject(root, "agent_last_status_kind", bot_.AgentLastStatusKind());
+    cJSON_AddStringToObject(root, "agent_last_status_detail", bot_.AgentLastStatusDetail());
+    cJSON_AddNumberToObject(root, "agent_last_status_at",
+                            static_cast<double>(bot_.AgentLastStatusAt()));
+    cJSON_AddStringToObject(root, "agent_activity_correlation_id",
+                            bot_.AgentActivityCorrelationId());
+    cJSON_AddNumberToObject(root, "agent_activity_seconds_left",
+                            static_cast<double>(bot_.AgentThinkingSecondsLeft()));
+    cJSON_AddStringToObject(root, "agent_last_reject_detail", bot_.AgentLastRejectDetail());
+    cJSON_AddNumberToObject(root, "agent_last_reject_at",
+                            static_cast<double>(bot_.AgentLastRejectAt()));
     cJSON_AddBoolToObject(root, "wechat_connected", bot_.Connected());
     cJSON_AddStringToObject(root, "wechat_state", bot_.LoginStateText());
     cJSON_AddNumberToObject(root, "wechat_qr_seconds_left", bot_.QrSecondsLeft());
+    cJSON_AddStringToObject(root, "dashboard_view", DashboardViewName(ui_.DashboardView()));
     cJSON_AddBoolToObject(root, "screensaver_active", ui_.ScreensaverActive());
     cJSON_AddNumberToObject(root, "screensaver_started_at", static_cast<double>(ui_.ScreensaverStartedAt()));
     cJSON_AddNumberToObject(root, "screensaver_return_sec", CONFIG_WEC_SCREENSAVER_RETURN_SEC);
+    cJSON_AddNumberToObject(root, "heap_free",
+                            static_cast<double>(heap_caps_get_free_size(MALLOC_CAP_8BIT)));
+    cJSON_AddNumberToObject(root, "heap_largest",
+                            static_cast<double>(heap_caps_get_largest_free_block(MALLOC_CAP_8BIT)));
+    cJSON_AddNumberToObject(root, "heap_internal_free",
+                            static_cast<double>(heap_caps_get_free_size(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT)));
+    cJSON_AddNumberToObject(root, "heap_internal_largest",
+                            static_cast<double>(heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT)));
+    cJSON_AddNumberToObject(root, "heap_dma_free",
+                            static_cast<double>(heap_caps_get_free_size(MALLOC_CAP_DMA)));
+    cJSON_AddNumberToObject(root, "heap_dma_largest",
+                            static_cast<double>(heap_caps_get_largest_free_block(MALLOC_CAP_DMA)));
     cJSON_AddNumberToObject(root, "note_count", static_cast<double>(notes_.Count()));
     cJSON_AddNumberToObject(root, "note_index", static_cast<double>(notes_.CurrentIndex()));
+    const Note* current = notes_.Current();
+    cJSON_AddStringToObject(root, "screen_revision",
+                            current ? current->screen_revision.c_str() : "");
+    if (current) {
+        cJSON* note = cJSON_CreateObject();
+        cJSON_AddStringToObject(note, "revision", current->screen_revision.c_str());
+        cJSON_AddStringToObject(note, "render_id", current->render_id.c_str());
+        cJSON_AddNumberToObject(note, "page_count",
+                                static_cast<double>(current->screen_frames.size()));
+        cJSON_AddStringToObject(note, "time_label", current->time_label.c_str());
+        cJSON_AddItemToObject(root, "current_note", note);
+    }
     cJSON_AddBoolToObject(root, "idle_photo_configured", notes_.HasIdlePhoto());
+    if (const Note* photo = notes_.IdlePhoto()) {
+        cJSON* idle = cJSON_CreateObject();
+        cJSON_AddStringToObject(idle, "revision", photo->screen_revision.c_str());
+        cJSON_AddStringToObject(idle, "render_id", photo->render_id.c_str());
+        cJSON_AddNumberToObject(idle, "page_count",
+                                static_cast<double>(photo->screen_frames.size()));
+        cJSON_AddNumberToObject(idle, "width", photo->screen_frame_width);
+        cJSON_AddNumberToObject(idle, "height", photo->screen_frame_height);
+        cJSON_AddNumberToObject(idle, "stride", photo->screen_frame_stride);
+        cJSON_AddStringToObject(idle, "time_label", photo->time_label.c_str());
+        cJSON_AddItemToObject(root, "idle_photo", idle);
+    }
     PrintJson(root);
     cJSON_Delete(root);
 }
@@ -629,6 +770,7 @@ bool SerialConfig::HandleSet(const char* json) {
     cJSON* ssid_node = cJSON_GetObjectItem(root, "ssid");
     cJSON* password_node = cJSON_GetObjectItem(root, "password");
     cJSON* curator_node = cJSON_GetObjectItem(root, "curator_url");
+    cJSON* agent_mode_node = cJSON_GetObjectItem(root, "agent_mode");
     cJSON* ai_provider_node = cJSON_GetObjectItem(root, "ai_provider");
     cJSON* ai_token_node = cJSON_GetObjectItem(root, "ai_token");
     cJSON* ai_endpoint_node = cJSON_GetObjectItem(root, "ai_endpoint");
@@ -638,6 +780,8 @@ bool SerialConfig::HandleSet(const char* json) {
     const bool has_password = cJSON_IsString(password_node);
     const bool has_curator_url = cJSON_IsString(curator_node);
     const bool has_bad_curator_url = curator_node && !has_curator_url;
+    const bool has_agent_mode = cJSON_IsString(agent_mode_node);
+    const bool has_bad_agent_mode = agent_mode_node && !has_agent_mode;
     const bool has_ai_provider = cJSON_IsString(ai_provider_node);
     const bool has_ai_token = cJSON_IsString(ai_token_node);
     const bool has_ai_endpoint = cJSON_IsString(ai_endpoint_node);
@@ -650,14 +794,16 @@ bool SerialConfig::HandleSet(const char* json) {
     std::string ssid = has_ssid ? ssid_node->valuestring : "";
     std::string password = has_password ? password_node->valuestring : "";
     std::string curator_url = has_curator_url ? curator_node->valuestring : "";
+    std::string agent_mode = has_agent_mode ? agent_mode_node->valuestring : "";
     std::string ai_provider = has_ai_provider ? ai_provider_node->valuestring : "";
     std::string ai_token = has_ai_token ? ai_token_node->valuestring : "";
     std::string ai_endpoint = has_ai_endpoint ? ai_endpoint_node->valuestring : "";
     std::string ai_model = has_ai_model ? ai_model_node->valuestring : "";
     cJSON_Delete(root);
 
-    if (!has_ssid && !has_curator_url && !has_ai_provider && !has_ai_token &&
-        !has_ai_endpoint && !has_ai_model && !has_bad_curator_url &&
+    if (!has_ssid && !has_curator_url && !has_agent_mode && !has_ai_provider &&
+        !has_ai_token && !has_ai_endpoint && !has_ai_model && !has_bad_curator_url &&
+        !has_bad_agent_mode &&
         !has_bad_ai_provider && !has_bad_ai_token && !has_bad_ai_endpoint &&
         !has_bad_ai_model) {
         SendError("empty_config", "没有可保存的配置项");
@@ -665,6 +811,10 @@ bool SerialConfig::HandleSet(const char* json) {
     }
     if (has_bad_curator_url) {
         SendError("curator_url_invalid", "云端整理 URL 必须是字符串");
+        return false;
+    }
+    if (has_bad_agent_mode) {
+        SendError("agent_mode_invalid", "智能体模式必须是字符串");
         return false;
     }
     if (has_bad_ai_provider || has_bad_ai_token || has_bad_ai_endpoint || has_bad_ai_model) {
@@ -704,6 +854,18 @@ bool SerialConfig::HandleSet(const char* json) {
         }
         if (!SaveConfigString(kCuratorUrlKey, curator_url)) {
             SendError("nvs_write_failed", "保存云端整理 URL 失败");
+            return false;
+        }
+    }
+
+    if (has_agent_mode) {
+        curator_url = CuratorUrlForAgentMode(agent_mode);
+        if (curator_url.empty()) {
+            SendError("agent_mode_invalid", "智能体模式必须是 official 或 byoa");
+            return false;
+        }
+        if (!SaveConfigString(kCuratorUrlKey, curator_url)) {
+            SendError("nvs_write_failed", "保存智能体模式失败");
             return false;
         }
     }

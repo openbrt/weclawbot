@@ -1,13 +1,24 @@
 #include <cstdio>
 #include <cstdlib>
 #include <ctime>
+#include <algorithm>
 #include <string>
 
 #include <esp_log.h>
+#include <esp_heap_caps.h>
+#include <esp_timer.h>
 #include <esp_system.h>
+#include <sdkconfig.h>
 #include <nvs_flash.h>
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
+
+#if !CONFIG_TINYUSB_CDC_ENABLED && \
+    (CONFIG_USJ_ENABLE_USB_SERIAL_JTAG || CONFIG_ESP_CONSOLE_USB_SERIAL_JTAG || \
+     CONFIG_ESP_CONSOLE_SECONDARY_USB_SERIAL_JTAG)
+#define WEC_HAS_USB_SERIAL_JTAG 1
+#include <driver/usb_serial_jtag.h>
+#endif
 
 #include "app_config.h"
 #include "battery_monitor.h"
@@ -36,9 +47,21 @@ SerialConfig serial_config(ui, wifi, notes, bot);
 Shtc3Sensor shtc3;
 BatteryMonitor battery;
 
+bool UsbHostPowerConnected() {
+#if WEC_HAS_USB_SERIAL_JTAG
+    return usb_serial_jtag_is_connected();
+#else
+    return false;
+#endif
+}
+
 void ConfigureLocalTimezone() {
     setenv("TZ", "CST-8", 1);
     tzset();
+}
+
+int64_t MonotonicSeconds() {
+    return esp_timer_get_time() / 1000000;
 }
 
 void BotTask(void*) {
@@ -46,11 +69,33 @@ void BotTask(void*) {
     vTaskDelete(nullptr);
 }
 
+bool StartTask(TaskFunction_t fn,
+               const char* name,
+               uint32_t stack_depth,
+               void* arg,
+               UBaseType_t priority,
+               TaskHandle_t* handle = nullptr) {
+    const BaseType_t ok = xTaskCreate(fn, name, stack_depth, arg, priority, handle);
+    std::printf(
+        "WEC:{\"scope\":\"task\",\"stage\":\"create\",\"name\":\"%s\","
+        "\"stack\":%u,\"ok\":%s,\"internal_free\":%u,"
+        "\"internal_largest\":%u,\"type\":\"event\"}\n",
+        name,
+        static_cast<unsigned>(stack_depth),
+        ok == pdPASS ? "true" : "false",
+        static_cast<unsigned>(heap_caps_get_free_size(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT)),
+        static_cast<unsigned>(heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT)));
+    std::fflush(stdout);
+    return ok == pdPASS;
+}
+
 void RenderCurrentOrEmpty() {
     if (!notes.Empty()) {
         ui.ShowNotes(notes.All(), notes.CurrentIndex());
     } else if (const Note* photo = notes.IdlePhoto()) {
         ui.ShowIdlePhoto(*photo);
+    } else if (bot.UsesCustomAgent() && bot.AgentPaired()) {
+        ui.ShowAgentDashboard();
     } else {
         ui.ShowEmptyNotes();
     }
@@ -109,24 +154,50 @@ const char* DashboardSlotName(DashboardSlot slot) {
     return "calendar";
 }
 
+const char* DashboardViewName(UiDashboardView view) {
+    switch (view) {
+        case UiDashboardView::kCalendar:
+            return "calendar";
+        case UiDashboardView::kPhoto:
+            return "photo";
+        case UiDashboardView::kNote:
+            return "note";
+        case UiDashboardView::kOther:
+            return "other";
+    }
+    return "other";
+}
+
 void ShowDashboardSlot(DashboardSlot slot) {
     switch (slot) {
         case DashboardSlot::kCalendar:
-            ui.ShowEmptyNotes();
+            if (bot.UsesCustomAgent() && bot.AgentPaired()) {
+                ui.ShowAgentDashboard();
+            } else {
+                ui.ShowEmptyNotes();
+            }
             return;
         case DashboardSlot::kPhoto:
             if (const Note* photo = notes.IdlePhoto()) {
                 ui.ShowIdlePhoto(*photo);
                 return;
             }
-            ui.ShowEmptyNotes();
+            if (bot.UsesCustomAgent() && bot.AgentPaired()) {
+                ui.ShowAgentDashboard();
+            } else {
+                ui.ShowEmptyNotes();
+            }
             return;
         case DashboardSlot::kNote:
             if (!notes.Empty()) {
                 ui.ShowNotes(notes.All(), notes.CurrentIndex());
                 return;
             }
-            ui.ShowEmptyNotes();
+            if (bot.UsesCustomAgent() && bot.AgentPaired()) {
+                ui.ShowAgentDashboard();
+            } else {
+                ui.ShowEmptyNotes();
+            }
             return;
     }
 }
@@ -160,65 +231,113 @@ void AdvanceDashboardCarousel() {
     std::fflush(stdout);
 }
 
-void ScreensaverTask(void*) {
-    int64_t last_screensaver_activity = 0;
-    int64_t last_dashboard_turn = std::time(nullptr);
-    UiDashboardView last_dashboard_view = UiDashboardView::kOther;
-    while (true) {
-        const int64_t now = std::time(nullptr);
-        const int64_t last = bot.LastActivity();
-        if (ui.ScreensaverActive()) {
-            const int64_t started = ui.ScreensaverStartedAt();
-            if (started > 0 && now >= started + CONFIG_WEC_SCREENSAVER_RETURN_SEC) {
-                ui.SetScreensaverActive(false);
-                RenderCurrentOrEmpty();
-                last_dashboard_turn = now;
-                last_dashboard_view = ui.DashboardView();
-            }
-        } else if (last > 0 && last != last_screensaver_activity &&
-            now > last + CONFIG_WEC_SCREENSAVER_IDLE_SEC) {
-            if (notes.Empty() && notes.HasIdlePhoto()) {
-                RenderCurrentOrEmpty();
-            } else {
-                ui.ShowScreensaver(bot.Connected(), notes.Count());
-            }
-            last_screensaver_activity = last;
-            last_dashboard_turn = now;
+void ProcessDashboardTimers() {
+    static int64_t last_screensaver_activity = 0;
+    static int64_t last_dashboard_turn = 0;
+    static UiDashboardView last_dashboard_view = UiDashboardView::kOther;
+    static bool last_agent_ready = false;
+
+    const int64_t now = std::time(nullptr);
+    const int64_t now_mono = MonotonicSeconds();
+    if (last_dashboard_turn == 0) {
+        last_dashboard_turn = now_mono;
+    }
+    const int64_t last = bot.LastActivity();
+    const bool agent_ready = bot.AgentMqttConnected();
+    if (ui.ScreensaverActive()) {
+        const int64_t started = ui.ScreensaverStartedAt();
+        if (started > 0 && now >= started + CONFIG_WEC_SCREENSAVER_RETURN_SEC) {
+            ui.SetScreensaverActive(false);
+            RenderCurrentOrEmpty();
+            last_dashboard_turn = now_mono;
             last_dashboard_view = ui.DashboardView();
-        } else {
-            const UiDashboardView dashboard_view = ui.DashboardView();
-            if (dashboard_view != last_dashboard_view) {
-                last_dashboard_view = dashboard_view;
-                last_dashboard_turn = now;
-            } else if (bot.Connected() && dashboard_view != UiDashboardView::kOther &&
-                       (notes.Count() > 0 || notes.HasIdlePhoto()) &&
-                       now >= last_dashboard_turn + CONFIG_WEC_AUTO_PAGE_SEC) {
-                AdvanceDashboardCarousel();
-                last_dashboard_view = ui.DashboardView();
-                last_dashboard_turn = now;
-            }
         }
-        vTaskDelay(pdMS_TO_TICKS(1000));
+        last_agent_ready = agent_ready;
+    } else if (last > 0 && last != last_screensaver_activity &&
+        now > last + CONFIG_WEC_SCREENSAVER_IDLE_SEC) {
+        if (notes.Empty() && notes.HasIdlePhoto()) {
+            RenderCurrentOrEmpty();
+        } else {
+            ui.ShowScreensaver(bot.Connected(), notes.Count());
+        }
+        last_screensaver_activity = last;
+        last_dashboard_turn = now_mono;
+        last_dashboard_view = ui.DashboardView();
+        last_agent_ready = agent_ready;
+    } else {
+        const UiDashboardView dashboard_view = ui.DashboardView();
+        const bool has_dashboard_content = notes.Count() > 0 || notes.HasIdlePhoto();
+        if (dashboard_view != last_dashboard_view) {
+            last_dashboard_view = dashboard_view;
+            last_dashboard_turn = now_mono;
+        }
+        if (agent_ready && !last_agent_ready &&
+            dashboard_view != UiDashboardView::kOther && has_dashboard_content) {
+            last_dashboard_turn = now_mono - CONFIG_WEC_AUTO_PAGE_SEC;
+            std::printf(
+                "WEC:{\"scope\":\"ui\",\"stage\":\"carousel_ready\","
+                "\"view\":\"%s\",\"agent_ready\":true,"
+                "\"interval_sec\":%u,\"ok\":true,\"type\":\"event\"}\n",
+                DashboardViewName(dashboard_view),
+                static_cast<unsigned>(CONFIG_WEC_AUTO_PAGE_SEC));
+            std::fflush(stdout);
+        }
+        last_agent_ready = agent_ready;
+        if (agent_ready &&
+            dashboard_view != UiDashboardView::kOther && has_dashboard_content &&
+            now_mono >= last_dashboard_turn + CONFIG_WEC_AUTO_PAGE_SEC) {
+            AdvanceDashboardCarousel();
+            last_dashboard_view = ui.DashboardView();
+            last_dashboard_turn = now_mono;
+        }
     }
 }
 
 void EnvironmentTask(void*) {
     bool sensor_ready = false;
     bool have_reading = false;
+    bool runtime_active = false;
     int tick = 0;
     while (true) {
         ui.SetNetworkStatus(wifi.Connected());
-        if (tick % 12 == 0) {
+        // USB host presence can change while the board remains on battery.
+        // This only repaints the status bar when the state actually changes.
+        const bool usb_host_connected = UsbHostPowerConnected();
+        ui.SetUsbHostPowerStatus(usb_host_connected);
+
+        const bool wechat_connected = bot.Connected();
+        const bool agent_mqtt_connected = bot.AgentMqttConnected();
+        if (!wechat_connected && !agent_mqtt_connected) {
+            vTaskDelay(pdMS_TO_TICKS(1000));
+            continue;
+        }
+        if (!runtime_active) {
+            runtime_active = true;
+            tick = 0;
+            std::printf(
+                "WEC:{\"scope\":\"task\",\"stage\":\"environment_active\","
+                "\"wechat_connected\":%s,\"agent_mqtt_connected\":%s,"
+                "\"ok\":true,\"type\":\"event\"}\n",
+                wechat_connected ? "true" : "false",
+                agent_mqtt_connected ? "true" : "false");
+            std::fflush(stdout);
+        }
+
+        ProcessDashboardTimers();
+        if (tick % 60 == 0) {
+            bot.RetryTimeSync();
             const BatteryReading battery_reading = battery.Read();
             if (battery_reading.valid) {
                 ui.SetBatteryStatus(battery_reading.present, battery_reading.percent);
                 std::printf(
                     "WEC:{\"scope\":\"power\",\"stage\":\"battery_read\","
                     "\"present\":%s,\"percent\":%d,\"voltage\":%.2f,"
+                    "\"usb_host_connected\":%s,"
                     "\"ok\":true,\"type\":\"event\"}\n",
                     battery_reading.present ? "true" : "false",
                     battery_reading.percent,
-                    battery_reading.voltage);
+                    battery_reading.voltage,
+                    usb_host_connected ? "true" : "false");
             } else {
                 std::printf(
                     "WEC:{\"scope\":\"power\",\"stage\":\"battery_read\","
@@ -236,13 +355,24 @@ void EnvironmentTask(void*) {
                 ok = shtc3.Read(&temperature, &humidity);
             }
             if (ok) {
+                const float raw_temperature = temperature;
+                const float raw_humidity = humidity;
+                temperature += static_cast<float>(CONFIG_WEC_TEMPERATURE_OFFSET_DECIC) / 10.0f;
+                humidity = std::clamp(
+                    humidity + static_cast<float>(CONFIG_WEC_HUMIDITY_OFFSET_PERCENT),
+                    0.0f,
+                    100.0f);
                 have_reading = true;
                 ui.SetEnvironment(temperature, humidity, true);
                 std::printf(
                     "WEC:{\"scope\":\"sensor\",\"stage\":\"shtc3_read\","
                     "\"temperature_c\":%.1f,\"humidity_percent\":%.1f,"
+                    "\"raw_temperature_c\":%.1f,\"raw_humidity_percent\":%.1f,"
+                    "\"temperature_offset_decic\":%d,\"humidity_offset_percent\":%d,"
                     "\"ok\":true,\"type\":\"event\"}\n",
-                    temperature, humidity);
+                    temperature, humidity, raw_temperature, raw_humidity,
+                    CONFIG_WEC_TEMPERATURE_OFFSET_DECIC,
+                    CONFIG_WEC_HUMIDITY_OFFSET_PERCENT);
             } else {
                 if (!have_reading) {
                     ui.SetEnvironment(0.0f, 0.0f, false);
@@ -256,17 +386,11 @@ void EnvironmentTask(void*) {
         } else {
             ui.Tick();
         }
-        tick = (tick + 1) % 12;
-        vTaskDelay(pdMS_TO_TICKS(5000));
+        tick = (tick + 1) % 60;
+        vTaskDelay(pdMS_TO_TICKS(1000));
     }
 }
 
-void TimeSyncTask(void*) {
-    while (true) {
-        bot.RetryTimeSync();
-        vTaskDelay(pdMS_TO_TICKS(60000));
-    }
-}
 }  // namespace
 
 extern "C" void app_main(void) {
@@ -291,7 +415,6 @@ extern "C" void app_main(void) {
     StartUsbProductDisk();
 #endif
     serial_config.Start();
-    xTaskCreate(EnvironmentTask, "environment", 4096, nullptr, 2, nullptr);
 
     wifi.LoadCredentials();
     if (!wifi.HasConfiguredSsid()) {
@@ -317,7 +440,7 @@ extern "C" void app_main(void) {
     ui.SetNetworkStatus(true);
     vTaskDelay(pdMS_TO_TICKS(700));
 
-    xTaskCreate(BotTask, "wechat_bot", 12288, nullptr, 5, nullptr);
-    xTaskCreate(TimeSyncTask, "time_sync", 4096, nullptr, 2, nullptr);
-    xTaskCreate(ScreensaverTask, "screensaver", 4096, nullptr, 2, nullptr);
+    StartTask(EnvironmentTask, "environment", 4096, nullptr, 2);
+    vTaskDelay(pdMS_TO_TICKS(200));
+    StartTask(BotTask, "wechat_bot", 12288, nullptr, 5);
 }

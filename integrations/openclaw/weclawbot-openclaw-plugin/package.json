@@ -1,0 +1,70 @@
+{
+  "name": "@openbrt/weclawbotctl",
+  "version": "0.1.19",
+  "description": "WeClawBot pairing and screen-control CLI for local AI agents.",
+  "type": "module",
+  "license": "MIT",
+  "keywords": [
+    "weclawbot",
+    "mqtt",
+    "esp32",
+    "e-paper",
+    "openclaw",
+    "agent",
+    "codex",
+    "claude-code",
+    "gemini-cli",
+    "hermes"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "files": [
+    "index.mjs",
+    "openclaw.plugin.json",
+    "lib",
+    "skills",
+    "test",
+    "workspace",
+    "bin",
+    "systemd",
+    "README.md"
+  ],
+  "bin": {
+    "weclawbot-byoa-bind": "bin/weclawbot-byoa-bind.mjs",
+    "weclawbot-openclaw-bridge": "bin/weclawbot-openclaw-bridge.mjs",
+    "weclawbotctl": "bin/weclawbotctl.mjs"
+  },
+  "exports": {
+    ".": "./index.mjs",
+    "./activity": "./lib/activity.mjs",
+    "./direct-control": "./lib/direct-control.mjs",
+    "./mqtt-control": "./lib/mqtt-control.mjs",
+    "./preview-manifest": "./lib/preview-manifest.mjs",
+    "./screen-preview": "./lib/screen-preview.mjs",
+    "./package.json": "./package.json"
+  },
+  "scripts": {
+    "check": "node --check index.mjs && node --check lib/openclaw-preview.mjs && node --check lib/preview-manifest.mjs && node --check bin/weclawbot-openclaw-bridge.mjs && node --check bin/weclawbot-byoa-bind.mjs && node --check bin/weclawbotctl.mjs && node --test test/direct-control.test.mjs test/activity.test.mjs test/screen-preview.test.mjs test/preview-manifest.test.mjs test/openclaw-preview-hook.test.mjs"
+  },
+  "dependencies": {
+    "mqtt": "^5.10.4",
+    "typebox": "^1.1.39"
+  },
+  "openclaw": {
+    "extensions": [
+      "./index.mjs"
+    ],
+    "compat": {
+      "pluginApi": ">=2026.6.9",
+      "minGatewayVersion": ">=2026.6.9"
+    },
+    "build": {
+      "openclawVersion": "2026.6.9",
+      "pluginSdkVersion": "2026.6.9"
+    }
+  }
+}

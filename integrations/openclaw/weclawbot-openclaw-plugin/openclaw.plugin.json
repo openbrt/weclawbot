@@ -1,0 +1,35 @@
+{
+  "id": "weclawbot",
+  "name": "WeClawBot",
+  "description": "Lets OpenClaw pair with and push content to a WeClawBot screen over MQTT.",
+  "contracts": {
+    "tools": [
+      "weclawbot_status",
+      "weclawbot_validate_screen_document",
+      "weclawbot_clear_screen",
+      "weclawbot_publish_screen_document",
+      "weclawbot_validate_activity",
+      "weclawbot_publish_activity"
+    ]
+  },
+  "skills": [
+    "./skills"
+  ],
+  "activation": {
+    "onStartup": true
+  },
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+      "auto_activity": {
+        "type": "boolean",
+        "description": "Automatically show the WeClawBot thinking pet during OpenClaw turns that mention the physical screen."
+      },
+      "auto_preview": {
+        "type": "boolean",
+        "description": "Optional legacy fallback that attaches PNG previews after publishing. Defaults off; agents should send preview.pages[].path to users explicitly."
+      }
+    }
+  }
+}

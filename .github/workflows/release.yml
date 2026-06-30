@@ -52,7 +52,7 @@ jobs:
           esp_idf_version: v5.5.2
           target: esp32s3
           command: |
-            idf.py -B build build
+            idf.py -B build -D SDKCONFIG_DEFAULTS="sdkconfig.defaults;sdkconfig.release.defaults" build
             scripts/prepare_web_firmware.sh
 
       - name: Package release assets

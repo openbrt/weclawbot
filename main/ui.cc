@@ -69,6 +69,21 @@ bool IsGenericTitle(const std::string& line) {
            line == "留言" || line == "微笺" || line == "今日提醒";
 }
 
+bool IsAgentSource(const Note& note) {
+    return note.from == "agent" || note.from == "byoa" || note.from == "openclaw" ||
+           note.from == "hermes" || StartsWith(note.from, "agent:");
+}
+
+std::string NoteFooter(const Note& note) {
+    const char* action = IsAgentSource(note) ? "智能体可更新或清除" : "微信端可修改或替换";
+    if (!note.time_label.empty()) {
+        char footer[96];
+        std::snprintf(footer, sizeof(footer), "%s  %s", note.time_label.c_str(), action);
+        return footer;
+    }
+    return action;
+}
+
 std::vector<std::string> NoteLines(const std::string& value) {
     std::vector<std::string> lines;
     std::string current;
@@ -471,6 +486,41 @@ void Ui::ShowQrStatus(const char* status, int seconds_left) {
     display_.Unlock();
 }
 
+void Ui::ShowAgentPairingCode(const char* code, int seconds_left) {
+    screensaver_active_ = false;
+    display_.Lock();
+    ClearLocked();
+
+    const char* value_text = code && code[0] ? code : "------";
+    char detail[32];
+    if (seconds_left > 0) {
+        std::snprintf(detail, sizeof(detail), "有效期 %02d:%02d", seconds_left / 60, seconds_left % 60);
+    } else {
+        std::snprintf(detail, sizeof(detail), "正在刷新绑定码");
+    }
+
+    calendar_overlay_ = CalendarOverlay::kAgentPairing;
+    calendar_overlay_text_ = value_text;
+    calendar_overlay_detail_ = detail;
+    ShowCalendarHomeLocked("智能体", "Agent 端输入绑定码完成连接", false, false);
+    RenderCalendarOverlayLocked();
+    display_.Unlock();
+}
+
+void Ui::ShowAgentDashboard(const char* detail) {
+    screensaver_active_ = false;
+    display_.Lock();
+    ClearLocked();
+    calendar_overlay_ = CalendarOverlay::kNone;
+    calendar_overlay_text_.clear();
+    calendar_overlay_detail_.clear();
+    ShowCalendarHomeLocked("智能体",
+                           detail && detail[0] ? detail : "智能体可直接更新屏幕",
+                           false,
+                           true);
+    display_.Unlock();
+}
+
 void Ui::ShowLoginSuccess() {
     ShowIdleHome("微信已连接", "发送微信文本，它会变成当前微笺");
 }
@@ -521,6 +571,21 @@ void Ui::ShowNotes(const std::vector<Note>& notes, size_t index) {
     display_.Unlock();
 }
 
+bool Ui::ShowNotePage(const std::vector<Note>& notes, size_t index, size_t page) {
+    if (notes.empty()) {
+        return false;
+    }
+    if (index >= notes.size()) {
+        index = 0;
+    }
+
+    display_.Lock();
+    ClearLocked();
+    const bool ok = RenderNotePageLocked(notes[index], page, nullptr);
+    display_.Unlock();
+    return ok;
+}
+
 bool Ui::ShowNextNotePage(const std::vector<Note>& notes, size_t index) {
     if (notes.empty()) {
         return false;
@@ -559,6 +624,10 @@ bool Ui::ShowPreviousNotePage(const std::vector<Note>& notes, size_t index) {
     RenderNotePageLocked(notes[index], requested_page, &page_count);
     display_.Unlock();
     return page_count > 1;
+}
+
+size_t Ui::NotePageCountFor(const Note& note) const {
+    return RenderedPageCount(note);
 }
 
 void Ui::ShowEmptyNotes() {
@@ -660,6 +729,16 @@ void Ui::SetBatteryStatus(bool present, int percent) {
     battery_present_ = present;
     battery_percent_ = std::max(0, std::min(100, percent));
     UpdateBatteryIndicatorLocked();
+    UpdateUsbHostPowerIndicatorLocked();
+    display_.Unlock();
+}
+
+void Ui::SetUsbHostPowerStatus(bool connected) {
+    display_.Lock();
+    if (usb_host_power_connected_ != connected) {
+        usb_host_power_connected_ = connected;
+        UpdateUsbHostPowerIndicatorLocked();
+    }
     display_.Unlock();
 }
 
@@ -674,8 +753,16 @@ void Ui::Tick() {
         const std::string header_detail = header_detail_;
         const std::string footer = calendar_footer_;
         const bool thinking = calendar_thinking_;
+        const bool show_pet = calendar_pet_visible_;
+        const CalendarOverlay overlay = calendar_overlay_;
+        const std::string overlay_text = calendar_overlay_text_;
+        const std::string overlay_detail = calendar_overlay_detail_;
         ClearLocked();
-        ShowCalendarHomeLocked(header_detail.c_str(), footer.c_str(), thinking);
+        calendar_overlay_ = overlay;
+        calendar_overlay_text_ = overlay_text;
+        calendar_overlay_detail_ = overlay_detail;
+        ShowCalendarHomeLocked(header_detail.c_str(), footer.c_str(), thinking, show_pet);
+        RenderCalendarOverlayLocked();
     } else {
         calendar_time_ready_ = time_ready;
         UpdateStatusLabelsLocked();
@@ -754,13 +841,8 @@ bool Ui::RenderNotePageLocked(const Note& note, size_t page, size_t* page_count)
         }
     }
 
-    char footer[96];
-    if (!note.time_label.empty()) {
-        std::snprintf(footer, sizeof(footer), "%s  微信端可修改或替换", note.time_label.c_str());
-    } else {
-        std::snprintf(footer, sizeof(footer), "微信端可修改、清除或替换");
-    }
-    FooterLocked(footer);
+    const std::string footer = NoteFooter(note);
+    FooterLocked(footer.c_str());
     return true;
 }
 
@@ -797,13 +879,8 @@ bool Ui::RenderContentBitmapLocked(const Note& note, size_t page) {
         return false;
     }
 
-    char footer[96];
-    if (!note.time_label.empty()) {
-        std::snprintf(footer, sizeof(footer), "%s  微信端可修改或替换", note.time_label.c_str());
-    } else {
-        std::snprintf(footer, sizeof(footer), "微信端可修改、清除或替换");
-    }
-    FooterLocked(footer);
+    const std::string footer = NoteFooter(note);
+    FooterLocked(footer.c_str());
     return true;
 }
 
@@ -886,11 +963,15 @@ bool Ui::RenderBitmapLocked(const std::vector<uint8_t>& frame,
     return true;
 }
 
-void Ui::ShowCalendarHomeLocked(const char* header_detail, const char* footer, bool thinking) {
+void Ui::ShowCalendarHomeLocked(const char* header_detail,
+                                const char* footer,
+                                bool thinking,
+                                bool show_pet) {
     calendar_home_active_ = true;
     note_view_active_ = false;
     calendar_thinking_ = thinking;
-    calendar_footer_ = footer ? footer : "微信发送文字、清单或照片即可上屏";
+    calendar_pet_visible_ = show_pet;
+    calendar_footer_ = footer ? footer : "等待内容上屏";
 
     HeaderLocked(WEC_SCREEN_TITLE, header_detail ? header_detail : "日历");
 
@@ -919,13 +1000,37 @@ void Ui::ShowCalendarHomeLocked(const char* header_detail, const char* footer, b
     calendar_time_ready_ = tm.tm_year >= 120;
     DrawCalendarLocked(tm);
 
-    red_block_pet_ = RedBlockPetCreate(lv_screen_active());
-    RedBlockPetSetPosition(red_block_pet_, 96, 138);
-    RedBlockPetSetState(red_block_pet_,
-                        thinking ? RedBlockPetState::kThinking : RedBlockPetState::kIdle);
+    if (show_pet) {
+        red_block_pet_ = RedBlockPetCreate(lv_screen_active());
+        RedBlockPetSetPosition(red_block_pet_, 96, 138);
+        RedBlockPetSetState(red_block_pet_,
+                            thinking ? RedBlockPetState::kThinking : RedBlockPetState::kIdle);
+    }
 
     FooterLocked(calendar_footer_.c_str());
     UpdateStatusLabelsLocked();
+}
+
+void Ui::RenderCalendarOverlayLocked() {
+    if (calendar_overlay_ == CalendarOverlay::kAgentPairing) {
+        RectObj(lv_screen_active(), 20, 146, 164, 94, White(), Black(), 0, 2);
+        auto* label = LabelLocked(lv_screen_active(), "智能体绑定码", &font_puhui_14_1,
+                                  Black(), 28, 154, 148);
+        lv_obj_set_style_text_align(label, LV_TEXT_ALIGN_CENTER, 0);
+        auto* value = LabelLocked(lv_screen_active(), calendar_overlay_text_.c_str(),
+                                  &font_puhui_30_4, Black(), 28, 174, 148);
+        lv_obj_set_style_text_align(value, LV_TEXT_ALIGN_CENTER, 0);
+        lv_obj_set_style_text_letter_space(value, 3, 0);
+        auto* detail = LabelLocked(lv_screen_active(), calendar_overlay_detail_.c_str(),
+                                   &font_puhui_14_1, Black(), 28, 216, 148);
+        lv_obj_set_style_text_align(detail, LV_TEXT_ALIGN_CENTER, 0);
+        return;
+    }
+    if (calendar_overlay_ == CalendarOverlay::kAgentDashboard) {
+        auto* label = LabelLocked(lv_screen_active(), calendar_overlay_text_.c_str(),
+                                  &font_puhui_20_4, Black(), 18, 160, 174);
+        lv_obj_set_style_text_align(label, LV_TEXT_ALIGN_CENTER, 0);
+    }
 }
 
 void Ui::UpdateStatusLabelsLocked() {
@@ -1010,13 +1115,36 @@ void Ui::UpdateBatteryIndicatorLocked() {
 
     lv_obj_clear_flag(battery_outline_, LV_OBJ_FLAG_HIDDEN);
     lv_obj_clear_flag(battery_nub_, LV_OBJ_FLAG_HIDDEN);
-    const int fill_w = std::max(2, (battery_percent_ * 14) / 100);
-    battery_fill_ = RectObj(lv_screen_active(), 364, 18, fill_w, 6,
+    const int fill_w = std::max(2, (battery_percent_ * 13) / 100);
+    battery_fill_ = RectObj(lv_screen_active(), 367, 18, fill_w, 6,
                             Black(), Black(), 0, 0);
+}
+
+void Ui::UpdateUsbHostPowerIndicatorLocked() {
+    ClearUsbHostPowerIndicatorLocked();
+    if (!battery_status_known_ || !battery_present_ || !usb_host_power_connected_) {
+        return;
+    }
+
+    // USB Serial/JTAG confirms a real data host, so this means the battery is
+    // present while the board is externally powered. It is not a charge-state claim.
+    usb_power_parts_[0] = RectObj(lv_screen_active(), 349, 18, 9, 7, White(), Black(), 0, 1);
+    usb_power_parts_[1] = RectObj(lv_screen_active(), 351, 14, 2, 4, Black(), Black(), 0, 0);
+    usb_power_parts_[2] = RectObj(lv_screen_active(), 355, 14, 2, 4, Black(), Black(), 0, 0);
+    usb_power_parts_[3] = RectObj(lv_screen_active(), 352, 25, 3, 3, Black(), Black(), 0, 0);
 }
 
 void Ui::ClearPlugIndicatorLocked() {
     for (auto& part : plug_parts_) {
+        if (part) {
+            lv_obj_delete(part);
+            part = nullptr;
+        }
+    }
+}
+
+void Ui::ClearUsbHostPowerIndicatorLocked() {
+    for (auto& part : usb_power_parts_) {
         if (part) {
             lv_obj_delete(part);
             part = nullptr;
@@ -1182,12 +1310,19 @@ void Ui::ClearLocked() {
     for (auto& part : plug_parts_) {
         part = nullptr;
     }
+    for (auto& part : usb_power_parts_) {
+        part = nullptr;
+    }
     qr_status_label_ = nullptr;
     header_detail_.clear();
     calendar_footer_.clear();
     calendar_time_ready_ = false;
     calendar_thinking_ = false;
+    calendar_pet_visible_ = true;
     qr_calendar_active_ = false;
+    calendar_overlay_ = CalendarOverlay::kNone;
+    calendar_overlay_text_.clear();
+    calendar_overlay_detail_.clear();
     qr_status_.clear();
     last_header_text_.clear();
     last_home_time_.clear();
@@ -1227,7 +1362,7 @@ void Ui::HeaderLocked(const char* left, const char* right) {
     header_right_label_ = LabelLocked(lv_screen_active(), "", &font_puhui_14_1,
                                       Black(), 134, 10, 182);
     lv_obj_set_style_text_align(header_right_label_, LV_TEXT_ALIGN_RIGHT, 0);
-    constexpr int kSignalX = 334;
+    constexpr int kSignalX = 326;
     constexpr int kSignalBaseline = 27;
     for (int i = 0; i < 3; ++i) {
         const int height = 4 + i * 4;
@@ -1236,12 +1371,13 @@ void Ui::HeaderLocked(const char* left, const char* right) {
                                      network_connected_ ? Black() : White(),
                                      Black(), 0, 1);
     }
-    battery_outline_ = RectObj(lv_screen_active(), 362, 16, 18, 10,
+    battery_outline_ = RectObj(lv_screen_active(), 365, 16, 18, 10,
                                White(), Black(), 0, 1);
-    battery_nub_ = RectObj(lv_screen_active(), 381, 19, 3, 4,
+    battery_nub_ = RectObj(lv_screen_active(), 384, 19, 3, 4,
                            Black(), Black(), 0, 0);
     UpdateStatusLabelsLocked();
     UpdateBatteryIndicatorLocked();
+    UpdateUsbHostPowerIndicatorLocked();
 
     lv_obj_t* line = lv_obj_create(lv_screen_active());
     lv_obj_remove_style_all(line);

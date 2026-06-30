@@ -1,12 +1,30 @@
 build/
 managed_components/
+node_modules/
+**/.git/
 sdkconfig
 sdkconfig.old
-logs/
-.DS_Store
-.pio/
-.vscode/
+*.log
+*.bin
 *.elf
 *.map
 *.uf2
+.DS_Store
+.pio/
+.vscode/
+runtime/dist/
+logs/
+tmp/
+server/
+site-experience/
+__pycache__/
+*.pyc
+*.pyo
+*.tgz
+.env
+.env.*
+!.env.example
 
+# Local research archive from the pre-open-source workspace.
+# Keep it locally for investigation, but do not publish it without a secrets audit.
+history/

@@ -7,11 +7,12 @@
   <style>
     :root {
       color-scheme: light;
-      --ink: #18201d;
-      --muted: #5f6b66;
-      --line: #d8ded9;
-      --paper: #f6f7f4;
-      --accent: #137565;
+      --ink: #17211d;
+      --muted: #5e6c66;
+      --line: #d8dfdb;
+      --paper: #f7f8f5;
+      --accent: #127768;
+      --soft: #eaf3ef;
     }
     * { box-sizing: border-box; }
     body {
@@ -23,7 +24,7 @@
     main {
       width: min(1120px, calc(100vw - 36px));
       margin: 0 auto;
-      padding: 42px 0 56px;
+      padding: 40px 0 56px;
     }
     nav {
       display: flex;
@@ -35,7 +36,7 @@
       color: var(--muted);
     }
     nav strong { color: var(--ink); font-size: 18px; }
-    nav a, .links a {
+    a {
       color: var(--accent);
       text-decoration: none;
       font-weight: 650;
@@ -47,16 +48,16 @@
       align-items: center;
     }
     h1 {
-      font-size: clamp(46px, 8vw, 92px);
-      line-height: 0.95;
+      font-size: clamp(42px, 7vw, 84px);
+      line-height: 0.98;
       margin: 0 0 22px;
       letter-spacing: 0;
     }
     .lead {
-      font-size: clamp(18px, 2vw, 24px);
+      font-size: clamp(18px, 2vw, 23px);
       line-height: 1.55;
-      margin: 0 0 28px;
-      color: #2a332f;
+      margin: 0 0 18px;
+      color: #293430;
     }
     .links {
       display: flex;
@@ -64,22 +65,20 @@
       gap: 12px;
       margin: 30px 0;
     }
-    .primary {
-      display: inline-flex;
-      align-items: center;
-      min-height: 44px;
-      padding: 0 18px;
-      border-radius: 6px;
-      background: var(--accent);
-      color: white !important;
-    }
+    .primary,
     .secondary {
       display: inline-flex;
       align-items: center;
       min-height: 44px;
       padding: 0 18px;
-      border: 1px solid var(--line);
       border-radius: 6px;
+    }
+    .primary {
+      background: var(--accent);
+      color: white;
+    }
+    .secondary {
+      border: 1px solid var(--line);
       background: white;
     }
     .hero img {
@@ -103,6 +102,13 @@
       line-height: 1.65;
       margin: 0;
     }
+    .note {
+      margin-top: 36px;
+      padding: 18px 20px;
+      border-left: 4px solid var(--accent);
+      background: var(--soft);
+      color: #26342f;
+    }
     @media (max-width: 800px) {
       .hero, section {
         grid-template-columns: 1fr;
@@ -122,33 +128,35 @@
 
     <div class="hero">
       <div>
-        <h1>微信连接 AI，自我进化的桌面屏</h1>
-        <p class="lead">微笺把一句留言、提醒、问候、清单、照片或读书笔记安静地留在桌面、餐桌和床头。</p>
-        <p class="lead">This repository publishes the auditable ESP32 firmware and browser installer for WeClawBot.</p>
+        <h1>微信与 Agent 都能接管的桌面屏</h1>
+        <p class="lead">普通用户扫码使用官方智能体；高级用户用六位配对码把屏幕交给自己的 OpenClaw、Hermes、Codex 或脚本。</p>
+        <p class="lead">This repository publishes the auditable ESP32 firmware, Web Serial installer, behavior contract, and Agent plugins for WeClawBot.</p>
         <div class="links">
-          <a class="primary" href="https://weclawbot.link/">官网体验</a>
-          <a class="secondary" href="web/">安装 / 配置</a>
+          <a class="primary" href="web/">安装 / 配置</a>
+          <a class="secondary" href="https://weclawbot.link/">官网体验</a>
           <a class="secondary" href="README.zh-CN.md">中文说明</a>
           <a class="secondary" href="README.md">English README</a>
         </div>
       </div>
-      <img src="docs/assets/weclawbot-device-hero-v0.1.45.png" alt="WeClawBot running on Waveshare ESP32-S3-RLCD-4.2">
+      <img src="docs/assets/weclawbot-device-hero-v0.1.46.png" alt="WeClawBot running on Waveshare ESP32-S3-RLCD-4.2">
     </div>
 
     <section>
       <div>
-        <h2>微信输入</h2>
-        <p>扫码连接后，在微信里发送文字、清单或照片，设备自动更新屏幕；微信端也可以继续修改、清除或替换内容。</p>
+        <h2>官方微信模式</h2>
+        <p>屏幕显示微信二维码。扫码后发送文字、清单、提醒或照片，由官方智能体整理并通过 MQTT/WSS 回到真机。</p>
       </div>
       <div>
-        <h2>浏览器安装</h2>
-        <p>固件刷写和 Wi-Fi 配置走本地浏览器 USB 页面；普通升级保留 Wi-Fi、微信连接和当前微笺。</p>
+        <h2>自定义智能体模式</h2>
+        <p>配置页切到“自定义智能体”，屏幕显示六位配对码。用户自己的 Agent 安装 weclawbotctl 后接管屏幕。</p>
       </div>
       <div>
         <h2>隐私可审计</h2>
-        <p>仓库只公开设备端固件和用户指引，云端整理服务可配置，用户可选择自己的 provider。</p>
+        <p>固件保管微信登录、Wi-Fi、本地内容和硬件状态；公开仓库不包含官方云端密钥、用户日志或私有部署脚本。</p>
       </div>
     </section>
+
+    <p class="note">公开固件的行为边界由 <a href="web/firmware-contract.json">web/firmware-contract.json</a> 描述，官网仿真机和 release 流程都应以它为准。</p>
   </main>
 </body>
 </html>

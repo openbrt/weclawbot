@@ -1,8 +1,11 @@
 {
   "schema": "https://weclawbot.link/schemas/firmware-contract.v1",
   "firmware": {
-    "version": "0.1.47",
-    "release_url": "https://github.com/openbrt/weclawbot/releases/tag/v0.1.47",
+    "version": "0.1.77",
+    "channel": "public",
+    "development_build": false,
+    "manifest_path": "web/manifest.json",
+    "release_url": "https://github.com/openbrt/weclawbot/releases",
     "source_url": "https://github.com/openbrt/weclawbot"
   },
   "product": {
@@ -36,7 +39,9 @@
     "auto_page_sec": 12,
     "carousel_page_sec": 12,
     "screensaver_idle_sec": 600,
-    "screensaver_return_sec": 20
+    "screensaver_return_sec": 20,
+    "pairing_code_ttl_sec": 600,
+    "recommended_min_update_interval_ms": 60000
   },
   "ui": {
     "default_footer": "微信端可修改、清除或者替换",
@@ -44,11 +49,27 @@
     "connected_idle_footer": "微信已连接，等待新留言",
     "waiting_scan_footer": "等待微信扫码",
     "qr_footer": "微信扫码连接",
-    "thinking_footer": "红方块思考中",
+    "thinking_footer": "智能体思考中",
+    "byoa_pairing_label": "AI智能体绑定码",
+    "byoa_pairing_footer": "Agent 端输入此码绑定",
     "dashboard_carousel": ["calendar", "photo", "note"],
+    "max_visible_screens": 5,
+    "max_note_pages": 3,
     "platform_hint": "文档、图片和其他文件需要开通 WeClawBot 平台服务",
     "show_status_icons": true,
-    "status_icons": ["wifi", "plug"]
+    "status_icons": ["wifi", "plug", "battery"]
+  },
+  "agent_modes": {
+    "official": {
+      "label": "WeClawBot 官方",
+      "entry": "wechat_qr",
+      "description": "用户微信扫码，官方智能体整理后通过 MQTT/WSS 推屏。"
+    },
+    "byoa": {
+      "label": "自定义智能体",
+      "entry": "pairing_code",
+      "description": "用户自己的 Agent 通过六位配对码和 MQTT/WSS 接管屏幕，微信入口忽略。"
+    }
   },
   "buttons": [
     {
@@ -60,7 +81,7 @@
       "short_text": "短按：上一屏",
       "long_command": "clear-text",
       "long_press_ms": 3000,
-      "long_text": "长按 3 秒：清除文字微笺，保留照片和微信连接"
+      "long_text": "长按 3 秒：清除文字微笺，保留照片和连接状态"
     },
     {
       "id": "right",
@@ -71,7 +92,7 @@
       "short_text": "短按：下一屏",
       "long_command": "full-clear",
       "long_press_ms": 5000,
-      "long_text": "长按 5 秒：全清文字、照片和微信连接，回到扫码"
+      "long_text": "长按 5 秒：全清文字、照片、微信登录和智能体配对"
     },
     {
       "id": "middle",
@@ -84,12 +105,5 @@
       "long_press_ms": 3000,
       "long_text": "长按 3 秒：关机或开机"
     }
-  ],
-  "commands": {
-    "prev": "上一屏",
-    "next": "下一屏",
-    "clear-text": "清除文字微笺",
-    "full-clear": "全清并返回扫码",
-    "power-toggle": "开机或关机"
-  }
+  ]
 }

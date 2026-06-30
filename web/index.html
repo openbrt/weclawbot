@@ -7,7 +7,7 @@
     <link rel="stylesheet" href="./style.css">
     <script type="module" src="https://unpkg.com/esp-web-tools@10/dist/web/install-button.js?module"></script>
     <script defer src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
-    <script defer src="./app.js?v=0.1.46"></script>
+    <script defer src="./app.js?v=public"></script>
   </head>
   <body>
     <header class="topbar">
@@ -16,7 +16,7 @@
         <h1>微笺屏 WeClawBot 本地控制台</h1>
       </div>
       <div class="top-actions">
-        <span class="build-badge">固件 0.1.46</span>
+        <span class="build-badge">公开版安装页</span>
         <span class="build-badge">ESP32-S3</span>
       </div>
     </header>
@@ -56,9 +56,9 @@
         </esp-web-install-button>
 
         <ol class="steps">
-          <li>刷写时按住 BOOT 插入 Type-C，端口出现后松开 BOOT。</li>
-          <li>刷完后拔掉 Type-C，不按 BOOT 重新插入，进入正常启动。</li>
-          <li>屏幕亮起后，在右侧连接设备并写入 Wi-Fi。</li>
+          <li>按住 BOOT 插入 Type-C，端口出现后松开 BOOT 并刷写。</li>
+          <li>刷完后重新插入，不按 BOOT，让设备进入正常启动。</li>
+          <li>连接设备，写入 Wi-Fi，并选择官方云端或自定义智能体。</li>
         </ol>
       </section>
 
@@ -102,11 +102,11 @@
             <strong id="ip-address">-</strong>
           </div>
           <div>
-            <span class="label">云端</span>
+            <span class="label">智能体</span>
             <strong id="curator-state">-</strong>
           </div>
           <div>
-            <span class="label">微信</span>
+            <span class="label">入口</span>
             <strong id="wechat-state">-</strong>
           </div>
           <div>
@@ -133,71 +133,58 @@
               </button>
             </span>
           </label>
-          <label>
-            <span>云端整理 URL</span>
-            <input id="curator-url-input" name="curator_url" autocomplete="off" maxlength="240" placeholder="https://...">
-          </label>
-          <label>
-            <span>AI Provider</span>
-            <select id="ai-provider-select" name="ai_provider">
-              <option value="weclawbot">WeClawBot 托管</option>
-              <option value="deepseek">DeepSeek</option>
-              <option value="modelscope">ModelScope / Qwen</option>
-              <option value="openai">OpenAI-compatible</option>
-              <option value="custom">Custom</option>
-            </select>
-          </label>
-          <label>
-            <span>API key / access token</span>
-            <span class="password-field">
-              <input id="ai-token-input" name="ai_token" type="password" autocomplete="off" maxlength="240" placeholder="托管模式可留空，第三方 provider 填自己的 token">
-              <button class="password-toggle" id="ai-token-toggle" type="button" title="显示 token" aria-label="显示 token" aria-pressed="false">
-                <i data-lucide="eye"></i>
-              </button>
-            </span>
-          </label>
-          <label>
-            <span>Provider Endpoint</span>
-            <input id="ai-endpoint-input" name="ai_endpoint" autocomplete="off" maxlength="200" placeholder="可留空使用 provider 默认 endpoint">
-          </label>
-          <label>
-            <span>模型</span>
-            <input id="ai-model-input" name="ai_model" autocomplete="off" maxlength="80" placeholder="可留空使用云端默认模型">
-          </label>
+          <fieldset class="agent-mode-field">
+            <legend>屏幕接管方式</legend>
+            <div class="segmented-control" role="group" aria-label="智能体模式">
+              <button id="agent-mode-official" class="segment is-selected" type="button" aria-pressed="true">官方云端</button>
+              <button id="agent-mode-byoa" class="segment" type="button" aria-pressed="false">自定义智能体</button>
+            </div>
+            <p class="mode-help" id="agent-mode-help">保存并重启后，屏幕显示微信二维码；扫码即可由 WeClawBot 官方智能体处理并上屏。</p>
+          </fieldset>
+          <input id="curator-url-input" name="curator_url" type="hidden" value="https://weclawbot.link/gateway">
           <div class="button-row">
             <button class="button primary" id="save-wifi-button" type="submit" disabled>
               <i data-lucide="save"></i>
-              <span>保存配置</span>
-            </button>
-            <button class="button" id="reboot-button" type="button" disabled>
-              <i data-lucide="rotate-cw"></i>
-              <span>重启设备</span>
+              <span>保存并重启</span>
             </button>
           </div>
         </form>
 
-        <div class="maintenance-row">
-          <button class="button danger" id="clear-wifi-button" type="button" disabled>
-            <i data-lucide="wifi-off"></i>
-            <span>清 Wi-Fi</span>
-          </button>
-          <button class="button danger" id="clear-wechat-button" type="button" disabled>
-            <i data-lucide="log-out"></i>
-            <span>清微信</span>
-          </button>
-          <button class="button danger" id="clear-notes-button" type="button" disabled>
-            <i data-lucide="trash-2"></i>
-            <span>清微笺</span>
-          </button>
-        </div>
+        <details class="advanced-panel">
+          <summary>高级操作</summary>
+          <div class="advanced-body">
+            <button class="button" id="reboot-button" type="button" disabled>
+              <i data-lucide="rotate-cw"></i>
+              <span>仅重启设备</span>
+            </button>
+            <div class="maintenance-row">
+              <button class="button danger" id="clear-wifi-button" type="button" disabled>
+                <i data-lucide="wifi-off"></i>
+                <span>清 Wi-Fi</span>
+              </button>
+              <button class="button danger" id="clear-wechat-button" type="button" disabled>
+                <i data-lucide="log-out"></i>
+                <span>清微信</span>
+              </button>
+              <button class="button danger" id="clear-agent-button" type="button" disabled>
+                <i data-lucide="link-2-off"></i>
+                <span>解绑智能体</span>
+              </button>
+              <button class="button danger" id="clear-notes-button" type="button" disabled>
+                <i data-lucide="trash-2"></i>
+                <span>清微笺</span>
+              </button>
+            </div>
+          </div>
+        </details>
 
-        <div class="console-wrap">
-          <div class="console-heading">
-            <span>串口输出</span>
-            <button class="text-button" id="clear-console-button" type="button">清空</button>
+        <details class="console-wrap">
+          <summary>串口输出</summary>
+          <div class="console-tools">
+            <button class="text-button" id="clear-console-button" type="button">清空输出</button>
           </div>
           <pre id="console-output" aria-live="polite"></pre>
-        </div>
+        </details>
       </section>
     </main>
   </body>

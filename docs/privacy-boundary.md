@@ -1,19 +1,23 @@
 # Firmware Privacy Boundary
 
-WeClawBot publishes the device firmware so users can inspect the code that runs
-inside their home or office.
+This compatibility document points old links to the current privacy boundary:
 
-The firmware owns:
+- [open-firmware-privacy-boundary.md](open-firmware-privacy-boundary.md)
+- [architecture.md](architecture.md)
+- [agent-direct-control-protocol.md](agent-direct-control-protocol.md)
 
-- Wi-Fi configuration stored in ESP32 NVS.
-- WeChat QR login state stored in ESP32 NVS.
-- The `getupdates` polling loop.
-- Local note and idle-photo cache.
-- The configurable curator endpoint and optional provider credentials.
+The short version:
 
-The curator endpoint receives only the message payload needed to prepare a
-screen update. It does not receive the WeChat bot token from firmware.
+- ESP32 owns Wi-Fi credentials, WeChat QR login, iLink `getupdates`, WeChat bot
+  token storage, local notes/photos, display refresh, and hardware buttons.
+- Official cloud and BYOA Agents may receive bounded event metadata and screen
+  capability information, but not WeChat bot tokens, QR credentials, message
+  cursors, Wi-Fi passwords, or local NVS secrets.
+- BYOA mode ignores WeChat input. The user's Agent controls the screen over
+  MQTT/WSS using `activity`, `screen_document`, and `screen_clear`.
+- Public firmware describes hardware and protocol boundaries. Agent skills own
+  layout quality, preview delivery, file handling, and user-facing workflow.
 
-Cloud implementation, deployment scripts, server logs, and provider secrets are
-outside the public firmware repository.
-
+The public repository does not contain official cloud deployment secrets,
+private gateway logs, model API keys, MQTT broker admin credentials, or user
+data.

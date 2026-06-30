@@ -1,0 +1,20 @@
+{"name":"ignore greeting","text":"你好","expect":{"action":"ignore","no_note":true}}
+{"name":"ignore ack","text":"收到","expect":{"action":"ignore","no_note":true}}
+{"name":"ignore emoji","text":"👍","expect":{"action":"ignore","no_note":true}}
+{"name":"pickup note","text":"明天下午三点去驿站取件，取件码 3-2156","expect":{"action":"create_note","title":"取件","contains":"3-2156","reply_contains":"已覆盖到屏幕"}}
+{"name":"property notice","text":"6月12日 09:00-12:00 小区停水，请提前储水。","expect":{"action":"create_note","title":"物业通知","contains":"停水"}}
+{"name":"meeting todo","text":"明天 10:30 开会，讨论 WeClawBot 云函数构建策略","expect":{"action":"create_note","title":"会议待办","contains":"云函数"}}
+{"name":"shopping list","text":"下班买牛奶、鸡蛋、面包","expect":{"action":"create_note","title":"清单","contains":"牛奶"}}
+{"name":"multi item checklist","text":"明天出门前检查：1 带门禁卡，2 带身份证，3 带充电宝，4 带雨伞，5 带耳机，6 取快递，7 还图书，8 给妈妈打电话，9 晚上买牛奶，10 睡前背 20 个单词。","expect":{"action":"create_note","title":"清单","contains":"20 个单词"}}
+{"name":"short reminder","text":"待会记得喝水","expect":{"action":"create_note","contains":"喝水","reply_contains":"已覆盖到屏幕"}}
+{"name":"parent child warm note preserves voice","text":"宝贝，早上好！早餐在锅里，冰箱里有你喜欢的水果，早晨后再吃水果。别忘了 10 点钟约了乒乓球课，上完跟教练约一下下次的上课时间。","expect":{"action":"create_note","contains":"宝贝，早上好"}}
+{"name":"voice transcript as text","kind":"wechat_voice_transcript","text":"明早八点提醒我带门禁卡","expect":{"action":"create_note","contains":"门禁卡"}}
+{"name":"vague future item clarifies","text":"明天好像有个事","expect":{"action":"clarify","no_note":true}}
+{"name":"file mention requires runtime","text":"文件发你了","expect":{"action":"service_required","no_note":true,"reply_contains":"文件暂不能直接上屏"}}
+{"name":"raw pdf needs extractor","kind":"pdf","filename":"物业通知.pdf","expect":{"action":"service_required","no_note":true}}
+{"name":"raw wechat image needs extractor","kind":"wechat_image","event":{"version":1,"event_id":"img_1","kind":"wechat_image","sender_ref":"u1","media":{"cdn_url":"https://example.invalid/image","aes_key":"0123456789abcdef0123456789abcdef","key_type":"image","byte_size":1024}},"expect":{"action":"service_required","no_note":true,"reply_contains":"图片我收到了"}}
+{"name":"extracted pdf becomes note","event":{"version":1,"event_id":"pdf_1","source":{"kind":"pdf","filename":"物业通知.pdf","sender_ref":"u1"},"blocks":[{"type":"heading","text":"停水通知","page":1},{"type":"paragraph","text":"6 月 12 日 09:00-12:00 小区停水，请提前储水。","page":1}]},"expect":{"action":"create_note","title":"物业通知","contains":"提前储水"}}
+{"name":"clear current note","text":"清屏","expect":{"action":"clear_note","no_note":true,"reply_contains":"已清除"}}
+{"name":"new independent item replaces current screen","event":{"version":1,"event_id":"replace_current_1","kind":"wechat_text","text":"明天早上九点去牙医诊所复诊，带上检查报告。","screen":{"version":2,"has_note":true,"current_note":{"canonical_text":"明天下午三点去图书馆还书。","revision":"rev-old","render_id":"render-old","page_count":1}}},"expect":{"action":"replace_note","contains":"牙医诊所"}}
+{"name":"dependent update keeps screen when models unavailable","event":{"version":1,"event_id":"clarify_current_1","kind":"wechat_text","text":"另外加上：出门前记得带雨伞。","screen":{"version":2,"has_note":true,"current_note":{"canonical_text":"明天下午三点去图书馆还书。","revision":"rev-old","render_id":"render-old","page_count":1}}},"expect":{"action":"clarify","no_note":true}}
+{"name":"add item to named shopping list preserves other tasks","event":{"version":1,"event_id":"shopping_add_1","kind":"wechat_text","text":"购物清单加上订爷爷生日蛋糕","screen":{"version":2,"has_note":true,"current_note":{"canonical_text":"购物清单\n鸡蛋 指甲钳 花生油\n门口保安亭拿快递\n把老王借的雨伞还给他","revision":"rev-old","render_id":"render-old","page_count":2}}},"expect":{"action":"update_note","contains":"订爷爷生日蛋糕"}}

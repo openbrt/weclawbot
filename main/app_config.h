@@ -3,7 +3,7 @@
 #include <driver/gpio.h>
 #include <driver/spi_common.h>
 
-#define WEC_FIRMWARE_VERSION "0.1.47"
+#define WEC_FIRMWARE_VERSION "0.1.77"
 #define WEC_PRODUCT_URL "https://weclawbot.link"
 #define WEC_PRODUCT_HOST "weclawbot.link"
 
@@ -55,6 +55,14 @@
 
 #ifndef CONFIG_WEC_AUTO_PAGE_SEC
 #define CONFIG_WEC_AUTO_PAGE_SEC 12
+#endif
+
+#ifndef CONFIG_WEC_TEMPERATURE_OFFSET_DECIC
+#define CONFIG_WEC_TEMPERATURE_OFFSET_DECIC 0
+#endif
+
+#ifndef CONFIG_WEC_HUMIDITY_OFFSET_PERCENT
+#define CONFIG_WEC_HUMIDITY_OFFSET_PERCENT 0
 #endif
 
 #define WEC_NVS_NAMESPACE "weclaw"

@@ -1,0 +1,19 @@
+[Unit]
+Description=WeClawBot OpenClaw Curator Bridge
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+EnvironmentFile=%h/.config/weclawbot/openclaw-curator.env
+Environment=NODE_EXTRA_CA_CERTS=%h/.openclaw/gateway/tls/gateway-cert.pem
+Environment=WEC_WECLAWBOTCTL_BIN=%h/.npm-global/bin/weclawbotctl
+ExecStart=%h/.npm-global/bin/weclawbot-openclaw-bridge
+Restart=always
+RestartSec=3
+TimeoutStopSec=30
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=default.target

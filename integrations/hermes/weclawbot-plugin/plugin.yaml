@@ -1,0 +1,12 @@
+name: weclawbot
+version: "0.1.1"
+description: "Pair a WeClawBot screen with Hermes and expose its temporary thinking display."
+author: "WeClawBot"
+kind: standalone
+provides_tools:
+  - weclawbot_activity
+  - weclawbot_screen_document
+  - weclawbot_clear_screen
+hooks:
+  - pre_llm_call
+  - post_llm_call

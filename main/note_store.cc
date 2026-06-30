@@ -410,6 +410,8 @@ bool NoteStore::ReplaceCurrent(std::string text, std::string from) {
     notes_[current_index_].created_at = std::time(nullptr);
     notes_[current_index_].time_label = MakeTimeLabel(notes_[current_index_].created_at);
     notes_[current_index_].screen_frames.clear();
+    notes_[current_index_].screen_revision.clear();
+    notes_[current_index_].render_id.clear();
     notes_[current_index_].screen_frame_width = 0;
     notes_[current_index_].screen_frame_height = 0;
     notes_[current_index_].screen_frame_stride = 0;
