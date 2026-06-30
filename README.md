@@ -1,5 +1,10 @@
 # WeClawBot
 
+[Install / Configure](https://openbrt.github.io/weclawbot/web/) ·
+[Firmware Releases](https://github.com/openbrt/weclawbot/releases) ·
+[Product Experience](https://weclawbot.link/) ·
+[中文说明](README.zh-CN.md)
+
 WeClawBot is an open firmware and Agent bridge for a small always-on desk
 screen built on the Waveshare ESP32-S3-RLCD-4.2 board. The device is a
 400 x 300 black-and-white reflective display for persistent notes, photos,

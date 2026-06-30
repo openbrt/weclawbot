@@ -1,5 +1,10 @@
 # WeClawBot / 微笺屏
 
+[固件安装 / 设备配置](https://openbrt.github.io/weclawbot/web/) ·
+[固件 Release](https://github.com/openbrt/weclawbot/releases) ·
+[官网体验](https://weclawbot.link/) ·
+[English README](README.md)
+
 WeClawBot 是面向 Waveshare ESP32-S3-RLCD-4.2 的开源桌面屏固件和 Agent
 连接体系。它把一块 400 x 300 黑白反射屏变成常驻的微笺屏：留言、提醒、
 照片、状态卡、读书摘记、任务进度和 Agent 生成的仪表盘，都可以安静地留在
@@ -160,7 +165,7 @@ Agent 要快速演进：
 公开仓库可以包含固件源码、安装/配置页、公开 release 产物、用户文档、Agent
 插件源码和经过审查的行为契约。
 
-公开仓库不能包含官方云端部署代码、私有网关日志、微信 token、Wi-Fi 密码、
+公开仓库不能包含官方托管服务部署代码、私有网关日志、微信 token、Wi-Fi 密码、
 模型 API key、MQTT broker 管理密钥、腾讯云资源 ID、用户原始数据或私有提示词。
 
 发布前先读 [docs/public-release-boundary.md](docs/public-release-boundary.md)，
