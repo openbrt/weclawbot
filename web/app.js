@@ -5,9 +5,8 @@ const ui = {
   refresh: document.querySelector("#refresh-button"),
   saveWifi: document.querySelector("#save-wifi-button"),
   reboot: document.querySelector("#reboot-button"),
+  resetModeConfig: document.querySelector("#reset-mode-config-button"),
   clearWifi: document.querySelector("#clear-wifi-button"),
-  clearWechat: document.querySelector("#clear-wechat-button"),
-  clearAgent: document.querySelector("#clear-agent-button"),
   clearNotes: document.querySelector("#clear-notes-button"),
   clearConsole: document.querySelector("#clear-console-button"),
   serialHelp: document.querySelector("#serial-help"),
@@ -65,9 +64,21 @@ function setAgentMode(mode, { syncUrl = true, dirty = false } = {}) {
   ui.modeHelp.textContent = custom
     ? "保存并重启后，屏幕显示六位绑定码；在你的 Agent 中安装 weclawbotctl 并输入该码配对。"
     : "保存并重启后，屏幕显示微信二维码；扫码即可由 WeClawBot 官方智能体处理并上屏。";
+  updateModeResetAction(custom);
   if (syncUrl) {
     const url = custom ? byoaGatewayUrl : defaultGatewayUrl;
     ui.curatorUrl.value = url;
+  }
+}
+
+function updateModeResetAction(custom) {
+  const icon = custom ? "link-2-off" : "log-out";
+  const label = custom ? "重置智能体配对" : "重置微信登录";
+  const title = custom ? "清除旧配对，保存自定义智能体方式并重启" : "清除微信登录，保存官方方式并重启";
+  ui.resetModeConfig.title = title;
+  ui.resetModeConfig.innerHTML = `<i data-lucide="${icon}"></i><span>${label}</span>`;
+  if (window.lucide) {
+    window.lucide.createIcons();
   }
 }
 
@@ -78,9 +89,8 @@ function setConnected(connected) {
   ui.refresh.disabled = !connected;
   ui.saveWifi.disabled = !connected;
   ui.reboot.disabled = !connected;
+  ui.resetModeConfig.disabled = !connected;
   ui.clearWifi.disabled = !connected;
-  ui.clearWechat.disabled = !connected;
-  ui.clearAgent.disabled = !connected;
   ui.clearNotes.disabled = !connected;
 }
 
@@ -401,6 +411,19 @@ async function confirmAndSend(message, command) {
   await sendCommand(command);
 }
 
+async function resetModeConfig() {
+  const custom = currentAgentMode === "byoa";
+  const message = custom
+    ? "重置自定义智能体配对？页面会清除旧配对，保存自定义智能体方式并重启，随后重新显示六位配对码。"
+    : "重置微信登录状态？页面会清除微信登录，保存 WeClawBot 官方方式并重启，随后重新显示二维码。";
+  if (!window.confirm(message)) {
+    return;
+  }
+  await sendCommand(custom ? "CLEAR_AGENT" : "CLEAR_WECHAT");
+  rebootAfterSave = true;
+  await sendCommand(`SET ${JSON.stringify({ agent_mode: currentAgentMode })}`);
+}
+
 ui.connect.addEventListener("click", () => {
   connectSerial().catch(showSerialError);
 });
@@ -416,14 +439,11 @@ ui.wifiForm.addEventListener("submit", (event) => {
 ui.reboot.addEventListener("click", () => {
   sendCommand("REBOOT").catch((error) => appendConsole("error", error.message));
 });
+ui.resetModeConfig.addEventListener("click", () => {
+  resetModeConfig().catch((error) => appendConsole("error", error.message));
+});
 ui.clearWifi.addEventListener("click", () => {
   confirmAndSend("清除设备上的 Wi-Fi 配置？", "CLEAR_WIFI").catch((error) => appendConsole("error", error.message));
-});
-ui.clearWechat.addEventListener("click", () => {
-  confirmAndSend("清除设备上的微信登录状态？", "CLEAR_WECHAT").catch((error) => appendConsole("error", error.message));
-});
-ui.clearAgent.addEventListener("click", () => {
-  confirmAndSend("解绑当前自定义智能体？", "CLEAR_AGENT").catch((error) => appendConsole("error", error.message));
 });
 ui.clearNotes.addEventListener("click", () => {
   confirmAndSend("清除屏幕上的当前微笺？", "CLEAR_NOTES").catch((error) => appendConsole("error", error.message));

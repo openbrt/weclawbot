@@ -81,9 +81,10 @@ no reply target and never require a WeChat round trip.
    callback URL exists.
 5. Firmware stores its scoped device credential, reconnects, and publishes
    `online` plus the live `device_context`; the agent may then publish a
-   screen document. The configuration page's `解绑智能体` action clears the
-   device-local BYOA credential and forces a fresh pairing flow. The old Agent
-   host should also run `weclawbotctl unbind --yes` to remove its local profile.
+   screen document. The configuration page's `重置智能体配对` action clears
+   the device-local BYOA credential, saves BYOA as the current ownership mode,
+   reboots the device, and forces a fresh pairing flow. The old Agent host
+   should also run `weclawbotctl unbind --yes` to remove its local profile.
 
 There is no Agent URL for an end user to discover or enter.
 The configuration choice selects the official WeClawBot Agent or this

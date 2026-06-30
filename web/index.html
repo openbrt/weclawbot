@@ -151,24 +151,20 @@
         </form>
 
         <details class="advanced-panel">
-          <summary>高级操作</summary>
+          <summary>重置配置</summary>
           <div class="advanced-body">
             <button class="button" id="reboot-button" type="button" disabled>
               <i data-lucide="rotate-cw"></i>
               <span>仅重启设备</span>
             </button>
             <div class="maintenance-row">
+              <button class="button danger" id="reset-mode-config-button" type="button" disabled title="按上方接管方式重置对应配置">
+                <i data-lucide="log-out"></i>
+                <span>重置微信登录</span>
+              </button>
               <button class="button danger" id="clear-wifi-button" type="button" disabled>
                 <i data-lucide="wifi-off"></i>
                 <span>清 Wi-Fi</span>
-              </button>
-              <button class="button danger" id="clear-wechat-button" type="button" disabled>
-                <i data-lucide="log-out"></i>
-                <span>清微信</span>
-              </button>
-              <button class="button danger" id="clear-agent-button" type="button" disabled>
-                <i data-lucide="link-2-off"></i>
-                <span>解绑智能体</span>
               </button>
               <button class="button danger" id="clear-notes-button" type="button" disabled>
                 <i data-lucide="trash-2"></i>
