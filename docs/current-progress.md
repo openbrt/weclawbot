@@ -610,7 +610,8 @@ MQTT 语义：
 - MQTT internal heap 余量仍偏紧，后续应继续削减常驻任务栈或把可外置的大
   buffer 移到 PSRAM，避免后续新功能再次挤爆 esp-mqtt。
 - `WEC:GET` 已增加当前 `screen_revision`，方便 Agent 调试 stale revision
-- 右键“全清”需要确认是否同时清除 Agent 绑定凭证
+- 右键“全清”已收束为同时清文字、照片、微信登录和 Agent MQTT 凭证；
+  BYOA 下会进入重新生成六位绑定码的流程。
 - 用户可见的 `重置智能体配对` 入口已补；服务端 bootstrap 已能自愈
   “服务器已绑定但设备 NVS 丢失”的卡死，后续可继续补显式 revoke 当前
   BYOA 绑定

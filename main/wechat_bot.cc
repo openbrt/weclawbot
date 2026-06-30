@@ -1329,6 +1329,15 @@ void WechatBot::ClearAgentCredentials() {
     agent_credentials_ = {};
     agent_paired_ = false;
     agent_online_announced_ = false;
+    agent_pairing_code_.clear();
+    agent_pairing_expires_at_ = 0;
+    agent_last_bootstrap_attempt_ = 0;
+    agent_last_status_kind_.clear();
+    agent_last_status_detail_.clear();
+    agent_last_reject_detail_.clear();
+    agent_last_status_at_ = 0;
+    agent_last_reject_at_ = 0;
+    ClearThinkingState();
     nvs_handle_t nvs = 0;
     if (nvs_open(kAgentNamespace, NVS_READWRITE, &nvs) == ESP_OK) {
         nvs_erase_key(nvs, kAgentMqttUrlKey);

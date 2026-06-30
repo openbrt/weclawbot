@@ -7,7 +7,7 @@ right. PWR is handled by the board power circuit and is not a normal ESP32 GPIO.
 | Name | GPIO | Active Level | WeClawBot use |
 | --- | --- | --- | --- |
 | KEY | GPIO18 | Low | Short press: previous page; long press 3s: clear text notes |
-| BOOT | GPIO0 | Low | Short press: next page; long press 5s: clear photo, text, and WeChat login |
+| BOOT | GPIO0 | Low | Short press: next page; long press 5s: clear photo, text, WeChat login, and Agent pairing |
 
 RLCD pins used by the driver:
 

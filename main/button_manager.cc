@@ -210,10 +210,11 @@ void ButtonManager::ClearTextNotes() {
 void ButtonManager::ClearAllAndRelogin() {
     notes_.ClearAll();
     notes_.ClearIdlePhoto();
+    bot_.ClearAgentCredentials();
     if (bot_.WechatIngressEnabled()) {
         ui_.ShowBoot("已全清，正在准备微信扫码");
         bot_.ClearSavedCredentials();
     } else {
-        ui_.ShowAgentDashboard("已全清，等待智能体");
+        ui_.ShowBoot("已全清，正在准备智能体绑定码");
     }
 }
