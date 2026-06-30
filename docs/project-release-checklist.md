@@ -69,7 +69,7 @@ manifest、固件二进制和项目文案全部一致，并且没有私有内容
 
 发布前检查：
 
-- [ ] GitHub About 描述和 homepage 是最新定位，homepage 直达安装/配置页：
+- [ ] GitHub About 描述和 homepage 是最新定位：
 
   ```sh
   gh repo view openbrt/weclawbot --json description,homepageUrl,repositoryTopics,url
@@ -77,8 +77,14 @@ manifest、固件二进制和项目文案全部一致，并且没有私有内容
 
   期望：
   - `description` 提到微信官方智能体和自定义 Agent；
-  - `homepageUrl` 是 `https://openbrt.github.io/weclawbot/web/`；
+  - `homepageUrl` 是 `https://weclawbot.link/`；
   - topics 包含 `esp32`、`mqtt`、`agent` 等公开检索词。
+
+- [ ] 明确区分官网和安装页：
+  - `https://weclawbot.link/` 是项目官网和仿真机交互体验网站；
+  - `https://openbrt.github.io/weclawbot/web/` 是固件安装与设备配置页面；
+  - GitHub About homepage 指向官网，不指向安装页；
+  - README、GitHub Pages 项目首页和官网中都应有安装/配置入口。
 
 - [ ] `README.md` 第一屏讲清楚 Official 和 BYOA 两条路径。
 - [ ] `README.zh-CN.md` 第一屏讲清楚“固件安装与设备配置”和两种接管方式。

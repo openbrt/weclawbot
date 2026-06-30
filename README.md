@@ -183,8 +183,8 @@ Before publishing, read
 
 ## Links
 
+- Official website and simulator: <https://weclawbot.link/>
 - Install/configure: <https://openbrt.github.io/weclawbot/web/>
-- Product experience: <https://weclawbot.link/>
 - npm package: <https://www.npmjs.com/package/@openbrt/weclawbotctl>
 - Releases: <https://github.com/openbrt/weclawbot/releases>
 

@@ -173,8 +173,8 @@ Agent 要快速演进：
 
 ## 链接
 
+- 项目官网 / 仿真机交互体验：<https://weclawbot.link/>
 - 安装/配置页：<https://openbrt.github.io/weclawbot/web/>
-- 官网体验：<https://weclawbot.link/>
 - npm 包：<https://www.npmjs.com/package/@openbrt/weclawbotctl>
 - 固件 Release：<https://github.com/openbrt/weclawbot/releases>
 
