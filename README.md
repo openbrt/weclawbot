@@ -97,6 +97,32 @@ weclawbotctl clear
 manifest when possible. Preview images are part of the product: they let the
 user and Agent tune density, typography, page splitting, and taste over time.
 
+## Reset Or Re-pair A Custom Agent
+
+Recommended path:
+
+1. Open [Install / Configure](https://openbrt.github.io/weclawbot/web/).
+2. Connect the device from desktop Chrome or Edge.
+3. Expand **高级操作** and click **解绑智能体**.
+4. Confirm the prompt. The device clears its local BYOA credential. Choose
+   **自定义智能体** again and click **保存并重启**.
+5. The screen shows a new six-digit pairing code. Ask the new Agent to run
+   `weclawbotctl bind <pairing-code>`, then `weclawbotctl doctor --online`.
+
+If the old Agent installation is no longer used, run this on that Agent host:
+
+```bash
+weclawbotctl unbind --yes
+```
+
+That only removes the local `~/.config/weclawbot/agent-mqtt.json` credential on
+the Agent host. It does not make the screen show a new code; re-pairing starts
+from the device-side **解绑智能体** action.
+
+Physical fallback: holding the right button for five seconds performs full
+clear. It clears text, photos, WeChat login, and Agent pairing, so use it only
+when all local user state should be removed.
+
 ## Hardware
 
 - Board: Waveshare ESP32-S3-RLCD-4.2

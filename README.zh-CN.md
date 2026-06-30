@@ -92,6 +92,30 @@ weclawbotctl clear
 `screen` 发布像素并等待固件 `applied` 回执。预览图是产品的一部分，不只是
 调试截图；它让用户和 Agent 在使用中共同调整密度、字体、分页和审美。
 
+## 重置自定义智能体 / 重新配对
+
+推荐路径：
+
+1. 打开 [固件安装 / 设备配置](https://openbrt.github.io/weclawbot/web/)。
+2. 用 Chrome 或 Edge 连接设备串口。
+3. 展开 **高级操作**，点击 **解绑智能体**。
+4. 确认后设备会清除本机 BYOA 凭证；选择 **自定义智能体**，再点
+   **保存并重启**。
+5. 屏幕左下会重新显示六位配对码。让新的 Agent 执行
+   `weclawbotctl bind <六位配对码>`，再运行 `weclawbotctl doctor --online`。
+
+如果旧 Agent 不再使用，在旧 Agent 所在机器上执行：
+
+```bash
+weclawbotctl unbind --yes
+```
+
+这只删除旧 Agent 本机的 `~/.config/weclawbot/agent-mqtt.json`，不会让屏幕重新
+出码；重新出码要以设备端 **解绑智能体** 为准。
+
+物理兜底：右键长按 5 秒是全清，会同时清文字、照片、微信登录和智能体配对；
+只有确认要全部清掉时才用。
+
 ## 硬件
 
 - 开发板：Waveshare ESP32-S3-RLCD-4.2
