@@ -2,6 +2,10 @@
 {"name":"greeting replies without screen update","text":"你好","expect":{"action":"reply_only","no_note":true,"reply_contains":"在，我在"}}
 {"name":"english greeting replies without screen update","text":"hello","expect":{"action":"reply_only","no_note":true,"reply_contains":"在，我在"}}
 {"name":"english ping replies without screen update","text":"ping","expect":{"action":"reply_only","no_note":true,"reply_contains":"在线"}}
+{"name":"long greeting stays off screen","text":"hello there nice to meet you","expect":{"action":"reply_only","no_note":true}}
+{"name":"conversation question stays off screen","text":"你今天好吗？","expect":{"action":"reply_only","no_note":true}}
+{"name":"plain quote stays off screen without display intent","text":"床前明月光，疑似地上霜。","expect":{"action":"reply_only","no_note":true}}
+{"name":"explicit display intent creates note","text":"把这句话上屏：床前明月光","expect":{"action":"create_note","contains":"床前明月光"}}
 {"name":"ignore ack","text":"收到","expect":{"action":"ignore","no_note":true}}
 {"name":"ignore emoji","text":"👍","expect":{"action":"ignore","no_note":true}}
 {"name":"pickup note","text":"明天下午三点去驿站取件，取件码 3-2156","expect":{"action":"create_note","title":"取件","contains":"3-2156","reply_contains":"已覆盖到屏幕"}}

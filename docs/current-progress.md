@@ -890,6 +890,14 @@ weclawbotctl clear
   不能只覆盖中文。已补充 `hello`、`hi`、`hey`、`ping`、`test` 为
   `reply_only`，并在 official MQTT 网关入口和 `/gateway` official delivery
   路径都做本地保护。
+- 用户指出“继续补招呼词黑名单”仍是错误方向。已改为正向屏幕任务准入：
+  - 普通聊天、问句、诗句、引用、观点默认是微信会话，不进屏幕渲染；
+  - 只有明确上屏/记录/提醒/整理，或具备提醒、清单、日程、取件码、地址、
+    付款、截止时间等耐久屏幕价值时，才进入 SCF/屏幕 skill；
+  - `futureValueScore` 不再让文本长度、普通标点或单独的 `今天` 触发上屏。
+  - 线上 `/gateway` synthetic 已验证：`hello there nice to meet you`、
+    `你今天好吗？`、`床前明月光，疑似地上霜。` 均为 `reply_only / has_note=false`；
+    `明天上午九点提醒我开会` 和取件码仍进入屏幕链路。
 - SCF 沉淀边界：
   - SCF 仍有必要，但只作为便宜、可复现、可回滚的 skill 执行器；
   - 不应把多用户会话状态、设备长期偏好或用户审美沉淀在某个 SCF 包里；

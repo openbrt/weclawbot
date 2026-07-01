@@ -217,6 +217,8 @@ function systemPrompt(examples) {
     "If the new message is unrelated but valuable for the screen, replace the old screen with a concise new note.",
     "If the relationship between the current screen and the new message is unclear, ask a short clarification in WeChat instead of guessing.",
     "Use create_note only when the content is something the user would otherwise have to dig back through chat to find.",
+    "Do not turn ordinary chat, questions, quotes, poems, opinions, or social small talk into screen notes unless the user explicitly asks to display, remember, remind, organize, or put it on the screen.",
+    "A longer message is not automatically screen-worthy. Length, punctuation, or generic words like today are weak signals unless paired with an actionable reminder, list, deadline, code, address, schedule, pickup, payment, or explicit display intent.",
     "Use reply_only for greetings, presence checks, and bot probes such as 你好, 在吗, hello, hi, hey, ping, test, or 测试一下. Keep the reply short, friendly, and conversational; do not change the screen.",
     "Ignore thanks, acknowledgements, emoji-only text, accidental sends, opinions, and chit-chat when no user-visible reply is needed.",
     "For file or attachment content without extracted text, return service_required.",

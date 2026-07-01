@@ -24,8 +24,13 @@ const CLEAR_PATTERNS = [
   /^(把屏幕清掉|把微笺清掉|清除当前(微笺|记事贴)?)$/u,
 ];
 
+const SCREEN_INTENT_PATTERNS = [
+  /上屏|放到?屏(幕|上)?|发到?屏(幕|上)?|贴到?屏(幕|上)?|显示到?屏(幕|上)?|显示在屏(幕|上)?/u,
+  /记到?微笺|记在屏(幕|上)?|写到?屏(幕|上)?/u,
+];
+
 const FUTURE_VALUE_PATTERNS = [
-  /今天|明天|后天|周[一二三四五六日天]|星期[一二三四五六日天]|[0-9一二三四五六七八九十]{1,2}[点:：]|[0-9]{1,2}月[0-9]{1,2}[日号]?/u,
+  /明天|后天|周[一二三四五六日天]|星期[一二三四五六日天]|[0-9一二三四五六七八九十]{1,2}[点:：]|[0-9]{1,2}月[0-9]{1,2}[日号]?/u,
   /取件|快递|驿站|门禁卡|验证码|取货码|密码|单号|票号/u,
   /会议|开会|待办|提醒|记得|截止|deadline|DDL/iu,
   /停水|停电|物业|通知|缴费|账单/u,
@@ -87,21 +92,43 @@ export const stickyCoreSkill = {
       return serviceRequired(bundle, "file_runtime_required", trace);
     }
 
+    const explicitScreenText = explicitScreenTextFrom(compact);
+    if (explicitScreenText) {
+      trace.push("explicit_screen_intent");
+      const note = createNote(bundle, explicitScreenText);
+      return {
+        action: currentScreenText(bundle) ? "replace_note" : "create_note",
+        note,
+        user_reply: createNoteReply(note),
+        confidence: 0.9,
+        trace,
+      };
+    }
+
+    if (looksLikeConversation(compact) && !hasScreenIntent(compact)) {
+      trace.push("conversation_not_screen_task");
+      return replyOnly("我收到了。这条我先按普通对话处理；要我记住、提醒、整理或显示到屏幕时，直接把任务说清楚就行。", 0.62, trace);
+    }
+
     const score = futureValueScore(compact, sourceKind);
     trace.push(`future_value_score:${score}`);
 
-    if ((score <= 0 && compact.length < 14) || (score <= 1 && isVague(compact))) {
-      trace.push("ambiguous_short_text");
+    if (score <= 0) {
+      trace.push("not_screen_task");
+      return replyOnly("收到。我先不更新屏幕；如果要记录、提醒或上屏，请直接说清楚要处理的内容。", 0.7, trace);
+    }
+
+    if (score <= 1 && isVague(compact)) {
+      trace.push("ambiguous_text");
       return {
         action: "clarify",
-        user_reply: "这条要作为当前微笺显示吗？请直接发送希望屏幕显示的完整文字，或补充时间、地点、要做的事。",
+        user_reply: "这条还不够具体。请补充时间、地点或要做的事，我再整理。",
         confidence: 0.72,
         trace,
       };
     }
 
-    const currentText = bundle?.screen?.current_note?.canonical_text ||
-      bundle?.screen?.current_note?.text || "";
+    const currentText = currentScreenText(bundle);
     const dependsOnCurrent = dependsOnCurrentScreen(compact, bundle);
     if (dependsOnCurrent) {
       const listUpdate = buildCurrentListUpdate(compact, currentText);
@@ -180,6 +207,15 @@ function isIgnorable(text) {
   return oneLine.length <= 2 && !/[0-9一二三四五六七八九十]/u.test(oneLine);
 }
 
+function replyOnly(userReply, confidence, trace) {
+  return {
+    action: "reply_only",
+    user_reply: userReply,
+    confidence,
+    trace,
+  };
+}
+
 function replyForConversationProbe(text) {
   const oneLine = normalizeConversationProbe(text);
   if (!CONVERSATION_PROBE_PATTERNS.some((pattern) => pattern.test(oneLine))) {
@@ -192,6 +228,42 @@ function replyForConversationProbe(text) {
     return oneLine === "晚安" ? "晚安，我在这里。" : "收到，回头见。";
   }
   return "在，我在。你可以直接说要我记住、整理或提醒的事。";
+}
+
+function hasScreenIntent(text) {
+  return SCREEN_INTENT_PATTERNS.some((pattern) => pattern.test(text));
+}
+
+function explicitScreenTextFrom(text) {
+  if (!hasScreenIntent(text)) {
+    return "";
+  }
+  const raw = String(text || "").trim();
+  const afterCommand = raw.match(/(?:上屏|放到?屏(?:幕|上)?|发到?屏(?:幕|上)?|贴到?屏(?:幕|上)?|显示到?屏(?:幕|上)?|显示在屏(?:幕|上)?|记到?微笺|记在屏(?:幕|上)?|写到?屏(?:幕|上)?)[：:，, ]+(.{1,420})$/u);
+  if (afterCommand?.[1]) {
+    return afterCommand[1].trim();
+  }
+  const beforeCommand = raw.match(/^(?:请|帮我|把|将)?(.{1,420}?)(?:上屏|放到?屏(?:幕|上)?|发到?屏(?:幕|上)?|贴到?屏(?:幕|上)?|显示到?屏(?:幕|上)?|显示在屏(?:幕|上)?|记到?微笺|记在屏(?:幕|上)?|写到?屏(?:幕|上)?)(?:吧|一下)?$/u);
+  return beforeCommand?.[1]?.trim() || "";
+}
+
+function looksLikeConversation(text) {
+  const raw = String(text || "").trim();
+  if (/[?？]$/u.test(raw)) {
+    return true;
+  }
+  if (/^(?:你|我|我们|这个|那个|为什么|怎么|如何|什么|谁|哪里|在哪|多少|能不能|可以吗|是不是)/u.test(raw)) {
+    return true;
+  }
+  if (/^(?:what|why|how|who|where|when|can|could|would|should|do|does|did|are|is|am)\b/iu.test(raw)) {
+    return true;
+  }
+  return false;
+}
+
+function currentScreenText(bundle) {
+  return bundle?.screen?.current_note?.canonical_text ||
+    bundle?.screen?.current_note?.text || "";
 }
 
 function normalizeConversationProbe(text) {
@@ -555,13 +627,13 @@ function futureValueScore(text, sourceKind) {
       score += 1;
     }
   }
-  if (text.includes("\n") || /[、,，;]/u.test(text)) {
+  if (score > 0 && (text.includes("\n") || /[、,，;]/u.test(text))) {
     score += 1;
   }
   if (sourceKind !== "wechat_text" && sourceKind !== "wechat_voice_transcript") {
     score += 1;
   }
-  if (text.length >= 24) {
+  if (score > 0 && text.length >= 24) {
     score += 1;
   }
   return score;

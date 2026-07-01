@@ -90,6 +90,14 @@ Use `create_note` only when the message contains information worth seeing
 later, such as a reminder, task, address, pickup code, deadline, short list, or
 reference detail. The note must not invent missing facts.
 
+The official WeChat entry must use positive screen-task admission. Ordinary
+chat, questions, quotes, poems, opinions, and social small talk are conversation
+turns first. They must not reach the screen renderer just because they are long,
+contain punctuation, mention "today", or are not in a greeting blacklist. They
+enter the screen pipeline only when there is explicit display intent or durable
+screen value such as a reminder, list, schedule, code, address, pickup, payment,
+or deadline.
+
 Use `clarify` when a message looks potentially useful but cannot become a
 self-contained note without more context.
 
