@@ -58,20 +58,30 @@ note. Long content may paginate on the device, but it remains one message.
 
 ## Default Policy
 
-Use `ignore` for greetings, acknowledgements, thanks, emoji-only messages,
-reactions, accidental sends, bot probes, and duplicate events.
+Use `reply_only` for greetings, presence checks, and bot probes. The official
+WeChat entry is a conversation with an agent, not only a sticky-note inbox, so
+short messages such as `在吗` should receive a normal friendly reply and must
+not update the screen.
 
-Examples that should normally be ignored:
+Examples that should normally reply without changing the screen:
 
 ```text
 你好
 在吗
+测试一下
+```
+
+Use `ignore` for acknowledgements, thanks, emoji-only messages, reactions,
+accidental sends, and duplicate events when no user-visible reply is needed.
+
+Examples that should normally be ignored:
+
+```text
 哈哈
 收到
 好的
 谢谢
 👍
-测试一下
 ```
 
 Use `create_note` only when the message contains information worth seeing

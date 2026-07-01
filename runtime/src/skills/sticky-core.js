@@ -1,6 +1,10 @@
+const CONVERSATION_PROBE_PATTERNS = [
+  /^(你好|您好|在吗|测试|测试一下)$/u,
+  /^(早|早上好|中午好|晚上好|晚安|拜拜)$/u,
+];
+
 const IGNORE_PATTERNS = [
-  /^(你好|您好|在吗|哈+|哈哈哈*|收到|好的|好|嗯|哦|ok|OK|谢谢|谢了|辛苦了|测试|测试一下)$/u,
-  /^(早|早上好|晚上好|晚安|拜拜)$/u,
+  /^(哈+|哈哈哈*|收到|好的|好|嗯|哦|ok|OK|谢谢|谢了|辛苦了)$/u,
 ];
 
 const SERVICE_TEXT_PATTERNS = [
@@ -30,7 +34,7 @@ const FUTURE_VALUE_PATTERNS = [
 
 export const stickyCoreSkill = {
   id: "sticky-core",
-  version: "0.1.7",
+  version: "0.1.8",
   async curate(bundle) {
     const trace = [];
     const text = collectText(bundle);
@@ -53,6 +57,17 @@ export const stickyCoreSkill = {
         action: "clear_note",
         user_reply: "已清除屏幕上的微笺。",
         confidence: 0.94,
+        trace,
+      };
+    }
+
+    const conversationReply = replyForConversationProbe(compact);
+    if (conversationReply) {
+      trace.push("reply_conversation_probe");
+      return {
+        action: "reply_only",
+        user_reply: conversationReply,
+        confidence: 0.98,
         trace,
       };
     }
@@ -162,6 +177,20 @@ function isIgnorable(text) {
     return true;
   }
   return oneLine.length <= 2 && !/[0-9一二三四五六七八九十]/u.test(oneLine);
+}
+
+function replyForConversationProbe(text) {
+  const oneLine = text.replace(/\s+/g, "");
+  if (!CONVERSATION_PROBE_PATTERNS.some((pattern) => pattern.test(oneLine))) {
+    return "";
+  }
+  if (/^(测试|测试一下)$/u.test(oneLine)) {
+    return "在，微信通道和 WeClawBot 云端都在线。你可以直接说要我记住、整理或提醒的事。";
+  }
+  if (/^(晚安|拜拜)$/u.test(oneLine)) {
+    return oneLine === "晚安" ? "晚安，我在这里。" : "收到，回头见。";
+  }
+  return "在，我在。你可以直接说要我记住、整理或提醒的事。";
 }
 
 function isVague(text) {

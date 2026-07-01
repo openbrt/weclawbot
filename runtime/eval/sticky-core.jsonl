@@ -1,4 +1,5 @@
-{"name":"ignore greeting","text":"你好","expect":{"action":"ignore","no_note":true}}
+{"name":"presence probe replies without screen update","text":"在吗","expect":{"action":"reply_only","no_note":true,"reply_contains":"在，我在"}}
+{"name":"greeting replies without screen update","text":"你好","expect":{"action":"reply_only","no_note":true,"reply_contains":"在，我在"}}
 {"name":"ignore ack","text":"收到","expect":{"action":"ignore","no_note":true}}
 {"name":"ignore emoji","text":"👍","expect":{"action":"ignore","no_note":true}}
 {"name":"pickup note","text":"明天下午三点去驿站取件，取件码 3-2156","expect":{"action":"create_note","title":"取件","contains":"3-2156","reply_contains":"已覆盖到屏幕"}}

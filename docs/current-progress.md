@@ -863,3 +863,31 @@ weclawbotctl clear
   BYOA 可靠性分析都要求 direct screen request 先执行
   `weclawbotctl doctor --online --timeout 8` 或 `weclawbot_status online:true`；
   看到 `credential_revoked_or_not_current_owner` 时旧 Agent 必须停止并提示重新配对。
+
+## 2026-07-01 官方微信入口复盘
+
+- 现象：真机切回“微信连接 WeClawBot 官方”后，用户发 `在吗` 仍收到旧的
+  “没有贴到屏幕/请发送要贴文字”类回复。
+- 线上日志定位到真实路径：
+  `official_mqtt_event -> /gateway -> hermes_delegate(25s timeout) -> SCF sticky-core@0.1.7 -> ignore -> shapeReply default_ignore_reply`。
+- 结论：官方 MQTT 多用户链路已经存在，但官方模式还不是干净的“完整多用户
+  会话 Agent”。旧记事贴整理器、Hermes 委托和 SCF 兜底仍混在同一入口。
+- 已修正本地 runtime：
+  - `sticky-core@0.1.8` 将 `在吗`、`你好`、`测试一下` 等探活/打招呼改为
+    `reply_only`，不更新屏幕；
+  - 模型 prompt 不再把普通寒暄回答成“没有贴到屏幕，请发要显示的文字”；
+  - `npm run check`、`npm run eval`、`npm run package:scf` 均通过，
+    `runtime/dist/weclawbot-curator-scf.zip` 已重新生成。
+- 已热修官方云端 `ssh weclawbot:/opt/weclawbot-curator-proxy/server.mjs`：
+  - `handleOfficialMqttMessage()` 对官方微信探活/打招呼做本地 `reply_only`
+    保护，避免依赖旧 SCF；
+  - `/gateway` 收到 `gateway_delivery=mqtt_official` 时跳过 Hermes delegate，
+    官方微信入口不再被 BYOA/Hermes worker 抢走；
+  - 线上服务已重启，`official_mqtt_restore_complete restored=2`；
+  - synthetic `/gateway` 请求已验证出现 `hermes_delegate_skipped reason=official_mqtt`，
+    不再等待 Hermes 25 秒。
+- SCF 沉淀边界：
+  - SCF 仍有必要，但只作为便宜、可复现、可回滚的 skill 执行器；
+  - 不应把多用户会话状态、设备长期偏好或用户审美沉淀在某个 SCF 包里；
+  - 长期沉淀应拆成三类：可审查的 skill/eval 样例、用户/设备偏好、会话状态。
+    第一类可进入 runtime 包并由 SCF 执行，后两类属于官方网关/Agent 控制面。

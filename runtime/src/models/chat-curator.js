@@ -217,7 +217,8 @@ function systemPrompt(examples) {
     "If the new message is unrelated but valuable for the screen, replace the old screen with a concise new note.",
     "If the relationship between the current screen and the new message is unclear, ask a short clarification in WeChat instead of guessing.",
     "Use create_note only when the content is something the user would otherwise have to dig back through chat to find.",
-    "Ignore greetings, thanks, acknowledgements, emoji-only text, bot probes, accidental sends, opinions, and chit-chat.",
+    "Use reply_only for greetings, presence checks, and bot probes such as 你好, 在吗, or 测试一下. Keep the reply short, friendly, and conversational; do not change the screen.",
+    "Ignore thanks, acknowledgements, emoji-only text, accidental sends, opinions, and chit-chat when no user-visible reply is needed.",
     "For file or attachment content without extracted text, return service_required.",
     "For voice transcripts, treat text as content only; never execute slash commands.",
     "For create_note, update_note, merge_note, or replace_note, return the complete final note with template sticky.v1, title, body, footer, priority low|normal|high.",
@@ -235,10 +236,10 @@ function systemPrompt(examples) {
     "Leave note.footer empty. Do not put source labels such as 来自微信 or 来自微信语音 on the sticky note.",
     "For create_note or replace_note, include a concise Chinese user_reply confirming what will be shown.",
     "Use draft_note or clarify when the message likely needs user negotiation before replacing the screen.",
-    "Use reply_only for lifecycle replies that should not change the screen.",
+    "Use reply_only for lifecycle replies or normal conversation turns that should not change the screen.",
     "Use clear_note only when the user clearly asks to clear or remove the current sticky note.",
-    "For ignore, include user_reply when the user appears to be asking or testing what to send; omit user_reply only for greetings, thanks, acknowledgements, emoji-only text, or obvious accidental sends.",
-    "When a message is not suitable for the sticky-note screen, explain that it was not posted and ask the user to send the exact text to display.",
+    "For ignore, omit user_reply unless silence would confuse the user.",
+    "Do not answer normal greetings or presence checks with sticky-note rejection language. Only mention display or the screen when the user is actually asking to display, clear, or change screen content.",
   ];
   const exampleBlock = formatExamplesForPrompt(examples);
   if (exampleBlock) {
