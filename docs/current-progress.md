@@ -886,6 +886,10 @@ weclawbotctl clear
   - 线上服务已重启，`official_mqtt_restore_complete restored=2`；
   - synthetic `/gateway` 请求已验证出现 `hermes_delegate_skipped reason=official_mqtt`，
     不再等待 Hermes 25 秒。
+- 后续用户实测 `hello` 仍被旧 SCF 判为 `create_note` 并上屏，说明问候/探活规则
+  不能只覆盖中文。已补充 `hello`、`hi`、`hey`、`ping`、`test` 为
+  `reply_only`，并在 official MQTT 网关入口和 `/gateway` official delivery
+  路径都做本地保护。
 - SCF 沉淀边界：
   - SCF 仍有必要，但只作为便宜、可复现、可回滚的 skill 执行器；
   - 不应把多用户会话状态、设备长期偏好或用户审美沉淀在某个 SCF 包里；

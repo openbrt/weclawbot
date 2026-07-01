@@ -69,6 +69,8 @@ Examples that should normally reply without changing the screen:
 你好
 在吗
 测试一下
+hello
+ping
 ```
 
 Use `ignore` for acknowledgements, thanks, emoji-only messages, reactions,

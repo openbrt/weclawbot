@@ -1,6 +1,7 @@
 const CONVERSATION_PROBE_PATTERNS = [
   /^(你好|您好|在吗|测试|测试一下)$/u,
   /^(早|早上好|中午好|晚上好|晚安|拜拜)$/u,
+  /^(hello|hi|hey|ping|test)$/iu,
 ];
 
 const IGNORE_PATTERNS = [
@@ -180,17 +181,24 @@ function isIgnorable(text) {
 }
 
 function replyForConversationProbe(text) {
-  const oneLine = text.replace(/\s+/g, "");
+  const oneLine = normalizeConversationProbe(text);
   if (!CONVERSATION_PROBE_PATTERNS.some((pattern) => pattern.test(oneLine))) {
     return "";
   }
-  if (/^(测试|测试一下)$/u.test(oneLine)) {
+  if (/^(测试|测试一下|ping|test)$/iu.test(oneLine)) {
     return "在，微信通道和 WeClawBot 云端都在线。你可以直接说要我记住、整理或提醒的事。";
   }
   if (/^(晚安|拜拜)$/u.test(oneLine)) {
     return oneLine === "晚安" ? "晚安，我在这里。" : "收到，回头见。";
   }
   return "在，我在。你可以直接说要我记住、整理或提醒的事。";
+}
+
+function normalizeConversationProbe(text) {
+  return String(text || "")
+    .toLowerCase()
+    .replace(/[\s~!！。,.，、;；:："'“”‘’()[\]{}<>《》?？/\\|-]+/gu, "")
+    .trim();
 }
 
 function isVague(text) {
